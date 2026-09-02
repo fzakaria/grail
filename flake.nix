@@ -48,6 +48,13 @@
           };
           default = grail;
 
+          # the browser solver: site/ + solve.lp + data shards from the
+          # multiverse input — the tree the pages workflow deploys
+          site = import ./nix/site.nix {
+            inherit pkgs self;
+            inherit multiverse;
+          };
+
           # the party trick: a derivation whose inputs the solver chose.
           # python >= 3.10 and openssl 1.1 last coexisted on 2022-09-12
           # (r852); stdenv, glibc and both inputs come from that world.
@@ -89,12 +96,59 @@
         }
       );
 
+      apps = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          # serve the built site locally, exactly the tree pages deploys
+          serve = {
+            type = "app";
+            program = "${pkgs.writeShellScript "serve-site" ''
+              exec ${pkgs.python3}/bin/python3 -m http.server 8137 \
+                --directory ${self.packages.${system}.site}
+            ''}";
+          };
+        }
+      );
+
       checks = forAllSystems (
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
         in
         {
+          # the site assembles, and the JS compareVersions port agrees with
+          # the Python one (which test_versions.py holds against real nix)
+          site =
+            pkgs.runCommand "grail-site-check"
+              {
+                nativeBuildInputs = [
+                  pkgs.python3
+                  pkgs.nodejs
+                ];
+              }
+              ''
+                test -f ${self.packages.${system}.site}/index.html
+                test -f ${self.packages.${system}.site}/solve.lp
+                test -f ${self.packages.${system}.site}/data/attrs.json
+
+                python3 - <<'EOF' > expected.json
+                import json, sys
+                sys.path.insert(0, "${self}")
+                from grail.versions import compare
+                pairs = json.load(open("${self}/tests/fixtures/version-pairs.json"))
+                sign = lambda n: (n > 0) - (n < 0)
+                json.dump([sign(compare(a, b)) for a, b in pairs], sys.stdout)
+                EOF
+                node ${self}/tests/site/versions-parity.mjs \
+                  ${self}/tests/fixtures/version-pairs.json \
+                  expected.json \
+                  ${self}/site/js/versions.js
+                touch $out
+              '';
+
           # the whole Python test suite, clingo and clingraph included,
           # offline
           tests =

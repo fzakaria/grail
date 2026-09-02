@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>grail — version ranges for nixpkgs</title>
+    <meta
+      name="description"
+      content="Solve version-range queries over 14 years of nixpkgs history, in your browser: clingo compiled to WebAssembly runs grail's actual ASP encoding against the nixpkgs-multiverse index."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>"
+    />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16181d" media="(prefers-color-scheme: dark)" />
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- clingo compiled to WebAssembly. Pinned by version; the entry spawns
+         its own worker (with a same-origin trampoline when served from the
+         CDN), so the page stays free of worker plumbing. Subresource
+         integrity is skipped deliberately: the module loads its worker and
+         .wasm as separate files an importmap cannot pin. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "clingo-wasm": "https://cdn.jsdelivr.net/npm/clingo-wasm@0.6.0/dist/index.web.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site">
+      <h1><a href=".">grail</a></h1>
+      <nav class="site">
+        <a href="https://nixmultiverse.com">nixpkgs-multiverse</a>
+        <a href="https://github.com/fzakaria/grail">GitHub</a>
+      </nav>
+    </header>
+
+    <p class="tagline">
+      Version ranges for nixpkgs. Write constraints and a solver finds the
+      revisions in 14 years of nixpkgs history where all of them hold. The
+      page is a single-page application: the index, the solver, and the
+      graph run entirely in your browser.
+    </p>
+
+    <div class="query-wrap">
+      <div class="query-box">
+        <pre id="highlight" aria-hidden="true"></pre>
+        <input
+          id="query"
+          type="text"
+          spellcheck="false"
+          autocomplete="off"
+          autocapitalize="off"
+          placeholder="python3@>=3.10 ^openssl@1.1.*"
+          aria-label="grail query"
+        />
+        <ul id="suggest" hidden></ul>
+      </div>
+      <button id="solve">solve</button>
+    </div>
+
+    <label class="opt muted" title="refuse plans whose revisions span more than one glibc era">
+      <input type="checkbox" id="one-glibc" />
+      one glibc era <span class="muted">(the ABI-safe mode: every chosen revision shares a libc)</span>
+    </label>
+
+    <!-- Examples are anchors, not buttons: each one is a copyable,
+         middle-clickable deep link (?q= solves on load), intercepted on a
+         plain click so the solve runs without a reload. -->
+    <p class="examples muted">
+      <span class="ex-size">small</span>
+      <a href="?q=ripgrep%40%3E%3D14" data-example="ripgrep@>=14">one range</a>
+      <a href="?q=hello%402.10" data-example="hello@2.10">one version</a>
+      <span class="ex-size">medium</span>
+      <a href="?q=python3%40%3E%3D3.10+%5Eopenssl%401.1.*" data-example="python3@>=3.10 ^openssl@1.1.*">python3 × openssl 1.1</a>
+      <a href="?q=ffmpeg%404.*+ripgrep%40%3E%3D14+%5Ebat" data-example="ffmpeg@4.* ripgrep@>=14 ^bat">two worlds</a>
+      <a href="?q=python3%403.8.*+%5Epostgresql%4013.*" data-example="python3@3.8.* ^postgresql@13.*">an impossible ask</a>
+      <span class="ex-size">big</span>
+      <a href="?q=python3%40%3E%3D3.10+%5Enodejs%40%3E%3D20+%5Ego%40%3E%3D1.21+%5Eruby%40%3E%3D3.2+%5Erustc%40%3E%3D1.70+%5Egcc%40%3E%3D13"
+         data-example="python3@>=3.10 ^nodejs@>=20 ^go@>=1.21 ^ruby@>=3.2 ^rustc@>=1.70 ^gcc@>=13">6-way coexistence</a>
+    </p>
+
+    <div id="results"></div>
+
+    <section class="help">
+      <h2>the grammar, in one table</h2>
+      <table>
+        <tr><td><code>@</code></td><td>attach a version range; a bare attr means any version</td></tr>
+        <tr><td><code>&gt;=</code> <code>&gt;</code> <code>&lt;=</code> <code>&lt;</code> <code>=</code></td><td>compare in <code>builtins.compareVersions</code> order</td></tr>
+        <tr><td><code>1.1.*</code></td><td>component-wise prefix: <code>3.8</code> accepts 3.8.9, refuses 3.81</td></tr>
+        <tr><td><code>3.10..3.12</code></td><td>inclusive interval, prefix-inclusive upper end</td></tr>
+        <tr><td><code>,</code> / <code>||</code></td><td>and / or</td></tr>
+        <tr><td><code>^</code></td><td>coexistence: one shared revision serves the whole group</td></tr>
+      </table>
+      <p class="muted">
+        The solver is <a href="https://potassco.org/clingo/">clingo</a> compiled
+        to WebAssembly, running grail's
+        <a href="https://github.com/fzakaria/grail/blob/main/asp/solve.lp">solve.lp</a>
+        unmodified against the
+        <a href="https://nixmultiverse.com">nixpkgs-multiverse</a> index.
+        Everything is static files; nothing leaves your browser.
+      </p>
+    </section>
+
+    <footer class="muted">
+      Made with ❤️ by
+      <a href="https://fzakaria.com">Farid Zakaria</a>
+      ·
+      <a href="https://github.com/fzakaria/grail/blob/main/LICENSE">MIT</a>
+      ·
+      data from <a href="https://github.com/fzakaria/nixpkgs-multiverse">nixpkgs-multiverse</a>
+      <div id="store" hidden><code id="store-path"></code></div>
+    </footer>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
