@@ -1,6 +1,7 @@
 % grail's whole solver. Facts arrive from grail/facts.py:
 %
 %   spec(S).                 one per requested spec, S = s0, s1, ...
+%   attrname(S, "python3").  names the id for humans; no rule reads it
 %   group(G, S).             coexistence group membership (G = g0, g1, ...)
 %   allowed(S, V, K).        version V passes S's range; K is its rank in
 %                            compareVersions order (bigger = newer)

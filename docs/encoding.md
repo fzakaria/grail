@@ -23,6 +23,7 @@ the hundreds of atoms regardless of index size):
 
 ```prolog
 spec(s0).                  % one per requested spec
+attrname(s0, "python3").   % names the id for humans; no rule reads it
 group(g0, s0).             % coexistence group membership
 allowed(s0, "3.10.6", 47). % version passed the range; 47 = compareVersions rank
 run(s0, "3.10.6", 835, 864). % one lifetime run, clamped to any date bounds

@@ -99,6 +99,8 @@ def emit(spec_facts: list[SpecFacts], index: Index) -> str:
 
     for sf in spec_facts:
         lines.append(f"spec({sf.sid}).")
+        # names the opaque spec id for humans and tooling; no rule reads it
+        lines.append(f"attrname({sf.sid}, {_q(sf.spec.attr)}).")
         lines.append(f"group({sf.gid}, {sf.sid}).")
         for version, (rank, runs) in sf.versions.items():
             lines.append(f"allowed({sf.sid}, {_q(version)}, {rank}).")
