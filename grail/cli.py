@@ -30,7 +30,10 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
         help="multiverse index directory (default: $GRAIL_INDEX)",
     )
     parser.add_argument(
-        "--one-glibc", action="store_true", help="refuse plans that mix glibc eras"
+        "--one-glibc",
+        action="store_true",
+        help="prefer one glibc era; glibc is directional, so mixing is "
+        "reported (link world minimum), never refused",
     )
     parser.add_argument(
         "--one",
@@ -38,7 +41,8 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
         action="append",
         default=[],
         help="refuse plans whose revisions mix versions of this attr "
-        "(repeatable; --one glibc is what --one-glibc says)",
+        "(repeatable). glibc is special: its backward compatibility makes "
+        "--one glibc a soft preference plus a report, never an error",
     )
     parser.add_argument(
         "--before", metavar="DATE", help="only revisions on or before this ISO date"
@@ -65,8 +69,16 @@ def _print_plan(plan, as_json: bool) -> None:
         for pin in group.pins:
             print(f"    {pin.attr} {pin.version}")
     for attr, versions in plan.libs:
-        if versions:
+        if versions and attr != "glibc":
             print(f"  {attr}: {', '.join(versions)}")
+
+    # the glibc line is a report, not a constraint: a shared link world
+    # must run the newest era (symbol versioning covers the older demands)
+    if len(plan.glibcs) > 1:
+        eras = ", ".join(plan.glibcs)
+        print(f"  glibc: {eras} (link world needs >= {plan.glibc_required})")
+    elif plan.glibcs:
+        print(f"  glibc: {plan.glibcs[0]}")
 
 
 def main(argv: list[str] | None = None) -> int:

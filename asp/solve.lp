@@ -7,7 +7,9 @@
 %                            compareVersions order (bigger = newer)
 %   run(S, V, Lo, Hi).       one lifetime run of V, clamped to any date bounds
 %   libera(L, K, Lo, Hi).    version-era K of library L reigns over Lo..Hi;
-%                            glibc is always emitted, --one <attr> adds more
+%                            emitted only for --one attrs — glibc included
+%                            only when asked, since its backward
+%                            compatibility makes mixing need no constraint
 %
 % A model picks one version per spec and one revision per group such that
 % every member's picked version was alive at the group's revision.
@@ -28,7 +30,7 @@ usedlib(L, K) :- used(R), libera(L, K, Lo, Hi), Lo <= R, R <= Hi.
 
 % the policy, lexicographic from the top:
 %   fewest distinct revisions, then newest versions, then fewest mixed
-%   library eras (glibc and any --one attr), then freshest builds
+%   eras of the --one attrs, then freshest builds
 #minimize { 1@4, R : used(R) }.
 #maximize { K@3, S : pick(S, V), allowed(S, V, K) }.
 #minimize { 1@2, L, K : usedlib(L, K) }.

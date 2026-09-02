@@ -138,9 +138,19 @@ function planHTML(plan) {
     }
   }
   for (const [lib, versions] of plan.libs ?? []) {
-    if (!versions.length) continue;
+    if (!versions.length || lib === "glibc") continue;
     const linked = versions.map((v) => a(pkgURL(lib, v), v));
     lines.push(`  ${esc(lib)}: ${linked.join(", ")}`);
+  }
+  // the glibc line is a report, not a constraint: a shared link world
+  // must run the newest era; symbol versioning covers the older demands
+  if (plan.glibcs?.length) {
+    const linked = plan.glibcs.map((v) => a(pkgURL("glibc", v), v));
+    const suffix =
+      plan.glibcs.length > 1
+        ? ` (link world needs ≥ ${esc(plan.glibcRequired)})`
+        : "";
+    lines.push(`  glibc: ${linked.join(", ")}${suffix}`);
   }
   return lines.join("\n");
 }

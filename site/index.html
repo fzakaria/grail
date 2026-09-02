@@ -63,9 +63,9 @@
     </div>
 
     <div class="opts">
-      <label class="opt muted" title="refuse plans whose revisions span more than one glibc era">
+      <label class="opt muted" title="prefer one glibc era; glibc is backward compatible, so mixing is reported with the link-world minimum, never refused">
         <input type="checkbox" id="one-glibc" />
-        one glibc era <span class="muted">(the ABI-safe mode: every chosen revision shares a libc)</span>
+        prefer one glibc era <span class="muted">(glibc is directional: mixing reports a minimum, never fails)</span>
       </label>
       <label class="opt muted" title="refuse plans whose revisions mix versions of these attrs — the glibc constraint, generalized">
         keep one version of:
@@ -90,12 +90,9 @@
       <span class="ex-size">coherence</span>
       <a href="?q=python3%403.10.*+postgresql%4013.*"
          data-example="python3@3.10.* postgresql@13.*">two eras mixed</a>
-      <a href="?q=python3%403.10.*+postgresql%4013.*&glibc=1"
-         data-example="python3@3.10.* postgresql@13.*" data-glibc="1"
-         title="same query; the solver gives up python 3.10.12 to keep one libc">forced to one era</a>
-      <a href="?q=python3%403.10.*+postgresql%4013.*&glibc=1&one=zstd,openssl"
-         data-example="python3@3.10.* postgresql@13.*" data-glibc="1" data-one="zstd, openssl"
-         title="one glibc, one zstd, one openssl: python retreats to 3.10.4 to keep every library coherent">one everything</a>
+      <a href="?q=python3%403.10.*+postgresql%4013.*&one=zstd,openssl"
+         data-example="python3@3.10.* postgresql@13.*" data-one="zstd, openssl"
+         title="one zstd, one openssl: python retreats to 3.10.4 to keep every contract-less library coherent; glibc follows for free">one everything</a>
       <a href="?q=ffmpeg%405.*+nodejs%4016.*&one=zstd,openssl"
          data-example="ffmpeg@5.* nodejs@16.*" data-one="zstd, openssl"
          title="no plan can keep one zstd and one openssl here; the solver names what would mix">impossibly incoherent</a>

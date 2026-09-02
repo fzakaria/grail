@@ -58,9 +58,13 @@ class Plan:
     result: str  # "sat" | "unsat"
     revisions: int = 0
     groups: list[GroupPlan] = field(default_factory=list)
+    # always reported, never a default constraint: the glibc eras the
+    # plan's revisions ship, and the newest of them — the glibc any link
+    # world combining these inputs must run (satisfied by symbol
+    # versioning; an input never demands more than its own revision's)
     glibcs: list[str] = field(default_factory=list)
-    # every era-tracked lib (glibc plus --one attrs) with the versions the
-    # plan's revisions ship, in era order
+    glibc_required: str | None = None
+    # the --one attrs with the versions the plan's revisions ship
     libs: list[tuple[str, list[str]]] = field(default_factory=list)
     why: str | None = None
 
@@ -81,6 +85,7 @@ class Plan:
                 for g in self.groups
             ],
             "glibcs": self.glibcs,
+            "glibcRequired": self.glibc_required,
             "libs": [
                 {"attr": lib, "versions": versions} for lib, versions in self.libs
             ],
@@ -185,13 +190,18 @@ def _plan_from_atoms(
 
     offsets = sorted({g.revision.off for g in groups.values()})
     lib_versions = [(lib, _lib_versions(offsets, index, lib)) for lib in libs]
+
+    # the glibc report: computed from era data after solving, never a
+    # solver input unless --one asked for it
+    glibcs = _lib_versions(offsets, index, "glibc")
     return Plan(
         result="sat",
         revisions=len(offsets),
         groups=[
             groups[g] for g in sorted(groups, key=lambda g: groups[g].revision.off)
         ],
-        glibcs=dict(lib_versions).get("glibc", []),
+        glibcs=glibcs,
+        glibc_required=glibcs[-1] if glibcs else None,
         libs=lib_versions,
     )
 
@@ -212,10 +222,15 @@ def solve(query: Query, index: Index, opts: SolveOptions | None = None) -> Plan:
             return Plan(result="unsat", why=f"no revision on or before {opts.before}")
         hi_bound = last
 
-    # the era-tracked libs: glibc always (reported and softly minimized),
-    # every --one attr additionally gets a hard no-mixing clause
+    # only --one attrs reach the solver as libera facts. glibc is special
+    # among them: its backward-compatibility contract means mixing is
+    # never an error, so --one glibc softly minimizes eras (priority 2)
+    # and the plan reports the link-world minimum, while every other
+    # --one attr gets the hard no-mixing clause a contract-less library
+    # actually needs.
     constrained = list(dict.fromkeys(opts.one + (["glibc"] if opts.one_glibc else [])))
-    libs = list(dict.fromkeys(["glibc"] + constrained))
+    libs = constrained
+    hard = [lib for lib in constrained if lib != "glibc"]
     missing = [lib for lib in libs if not index.has_attr(lib)]
     if missing:
         return Plan(
@@ -229,7 +244,7 @@ def solve(query: Query, index: Index, opts: SolveOptions | None = None) -> Plan:
         return Plan(result="unsat", why="; ".join(e.reasons))
 
     facts = emit(spec_facts, index, libs)
-    extra = "".join(one_rule(lib) for lib in constrained)
+    extra = "".join(one_rule(lib) for lib in hard)
     atoms = _model_atoms(_run_clingo(opts, facts, extra))
 
     if atoms is not None:
@@ -238,7 +253,7 @@ def solve(query: Query, index: Index, opts: SolveOptions | None = None) -> Plan:
     # UNSAT: explain. A coexistence group whose members never overlapped is
     # the common cause and is provable from the intervals alone.
     why = _never_overlapped(spec_facts, index)
-    if why is None and constrained:
+    if why is None and hard:
         # relax the no-mixing clauses; if that solves, name what mixed
         relaxed = _model_atoms(_run_clingo(opts, facts, ""))
         if relaxed is not None:
@@ -246,7 +261,7 @@ def solve(query: Query, index: Index, opts: SolveOptions | None = None) -> Plan:
             mixed = [
                 f"{lib} {'/'.join(versions)}"
                 for lib, versions in plan.libs
-                if lib in constrained and len(versions) > 1
+                if lib in hard and len(versions) > 1
             ]
             if mixed:
                 why = (

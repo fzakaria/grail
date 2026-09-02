@@ -78,8 +78,17 @@ cache, so the corpus densifies along the paths people actually query.
 The era constraint generalizes to any attr: `--one zstd --one openssl`
 demands that every chosen revision ship the same version of zstd and of
 openssl. The data is the same lifetime index glibc uses — which version of
-the attr each revision shipped — so no closure analysis is needed, and the
-encoding is the glibc rule with the library as a parameter.
+the attr each revision shipped — so no closure analysis is needed.
+
+glibc itself is deliberately exempt from the hard clause. Its symbol
+versioning makes compatibility directional — a newer glibc satisfies every
+older demand, and an input never demands more than the glibc of the
+revision it was built in — so a mixed plan is link-safe provided the
+shared process runs the newest era. Every plan therefore reports that
+minimum (`glibc: 2.34, 2.37 (link world needs >= 2.37)`), and
+`--one-glibc` / `--one glibc` only _prefers_ fewer eras (a soft
+objective); it can never make a plan unsatisfiable. The hard clause is
+reserved for libraries with no such contract.
 
 What it guarantees: version-level ABI agreement. The scenario it exists
 for is real and has happened in nixpkgs: an app vendors one zstd while

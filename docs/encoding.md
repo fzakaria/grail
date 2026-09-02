@@ -62,7 +62,9 @@ Lexicographic, highest priority first:
 ```
 
 `--one <attr>` appends a hard clause per attr instead of relying on
-priority 2 (`--one-glibc` is shorthand for `--one glibc`):
+priority 2 — except glibc: its backward compatibility makes mixing
+directional, so `--one glibc` (and its shorthand `--one-glibc`) stays
+soft and the plan reports the link-world minimum instead:
 
 ```prolog
 :- usedlib("zstd", K1), usedlib("zstd", K2), K1 < K2.

@@ -71,12 +71,14 @@ class TestIndependentGroups(unittest.TestCase):
         self.assertEqual(offs, [11, 19])
         self.assertEqual(plan.glibcs, ["2.31"])
 
-    # foo 1.0 exists only under glibc 2.30 and bar 1.1 only under 2.31, so
-    # demanding one glibc is impossible and the explanation says so.
-    def test_one_glibc_unsat(self):
+    # foo 1.0 exists only under glibc 2.30 and bar 1.1 only under 2.31.
+    # glibc's contract makes mixing directional rather than fatal: the
+    # plan solves anyway and reports the link-world minimum.
+    def test_one_glibc_mixes_with_a_report(self):
         plan = run("foo@1.0 bar@1.1", one_glibc=True)
-        self.assertEqual(plan.result, "unsat")
-        self.assertIn("glibc", plan.why)
+        self.assertEqual(plan.result, "sat")
+        self.assertEqual(plan.glibcs, ["2.30", "2.31"])
+        self.assertEqual(plan.glibc_required, "2.31")
 
 
 class TestClamps(unittest.TestCase):
@@ -115,11 +117,13 @@ class TestOneAttr(unittest.TestCase):
     # eras 0.9 [0,6], 1.0 [7,14], 1.1 [15,19]; foo 1.1 lives {5..8, 10..11}
     # across the 0.9/1.0 boundary and baz 3.0 only at {2,3} inside 0.9.
     def test_one_forces_shared_era(self):
-        # unconstrained: the soft glibc-era minimization (priority 2, above
-        # freshest-builds) already keeps foo in the 2.30 era with baz, so
-        # foo sits at r8 — bar-1.0 era, since nothing constrains bar
+        # unconstrained: glibc never constrains a default solve (its
+        # mixing is a report, not a clause), so foo takes its freshest
+        # build r11 and the plan spans both glibc eras
         free = run("foo@1.1 baz@3.0")
-        self.assertEqual(sorted(g.revision.off for g in free.groups), [3, 8])
+        self.assertEqual(sorted(g.revision.off for g in free.groups), [3, 11])
+        self.assertEqual(free.glibcs, ["2.30", "2.31"])
+        self.assertEqual(free.glibc_required, "2.31")
         self.assertEqual(dict(free.libs).get("bar"), None)  # not tracked
 
         # --one bar: foo must retreat into the 0.9 era, freshest is r6
@@ -128,16 +132,17 @@ class TestOneAttr(unittest.TestCase):
         self.assertEqual(sorted(g.revision.off for g in plan.groups), [3, 6])
         self.assertEqual(dict(plan.libs)["bar"], ["0.9"])
 
-    # an attr whose versions can never agree across the specs is unsat,
-    # and the explanation names the attr and the versions it would mix
+    # a HARD --one attr whose versions can never agree is unsat, and the
+    # explanation names the attr and the versions it would mix. (glibc,
+    # being directional, never behaves this way.)
     def test_one_unsat_names_the_versions(self):
-        # foo 1.0 dies at r4 (bar 0.9), bar@1.1-era starts r15; glibc attr
-        # itself as the lib: foo 1.0 is 2.30-only, bar 1.1 is 2.31-only
-        plan = run("foo@1.0 bar@1.1", one=["glibc"])
+        # foo 1.0 lives in the bar-0.9 era [0,6]; the bar@1.1 pin lives in
+        # the bar-1.1 era [15,19]; --one bar can never reconcile them
+        plan = run("foo@1.0 bar@1.1", one=["bar"])
         self.assertEqual(plan.result, "unsat")
-        self.assertIn("glibc", plan.why)
-        self.assertIn("2.30", plan.why)
-        self.assertIn("2.31", plan.why)
+        self.assertIn("bar", plan.why)
+        self.assertIn("0.9", plan.why)
+        self.assertIn("1.1", plan.why)
 
     def test_one_unknown_attr(self):
         plan = run("foo@1.0", one=["nosuchlib"])

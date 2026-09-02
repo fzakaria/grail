@@ -157,28 +157,33 @@ export async function solve(groups, { oneGlibc = false, one = [] } = {}) {
   const revs = await revisions();
   const tip = revs.length - 1;
 
-  // era-tracked libs: glibc always; every --one attr gets a hard clause
+  // --one attrs become solver facts; glibc among them only when asked,
+  // and even then softly — its backward compatibility means mixing is
+  // reported, never refused. Hard no-mixing clauses are for the rest.
   const constrained = [...new Set([...one, ...(oneGlibc ? ["glibc"] : [])])];
-  const libNames = [...new Set(["glibc", ...constrained])];
+  const hard = constrained.filter((lib) => lib !== "glibc");
   const libs = [];
-  for (const lib of libNames) {
+  for (const lib of constrained) {
     const eras = await libEras(lib, tip);
-    if (!eras.length && lib !== "glibc")
+    if (!eras.length)
       return { result: "unsat", why: `--one ${lib}: not in the index` };
     libs.push([lib, eras]);
   }
+  // glibc eras are always fetched for the report and the graph row
+  const glibcEras = await libEras("glibc", tip);
+  const display = [["glibc", glibcEras], ...libs.filter(([l]) => l !== "glibc")];
 
   const { resolved, problems } = await resolveSpecs(groups, tip);
   if (problems.length) return { result: "unsat", why: problems.join("; ") };
 
   const base = emitFacts(resolved, libs) + "\n" + (await solveLp());
-  const program = base + constrained.map(oneRule).join("");
+  const program = base + hard.map(oneRule).join("");
   const answer = await runClingo(program);
 
   let witnesses = answer.Call?.[0]?.Witnesses;
   if (answer.Result === "UNSATISFIABLE" || !witnesses?.length) {
     let why = neverOverlapped(resolved, revs);
-    if (why === null && constrained.length) {
+    if (why === null && hard.length) {
       // relax the no-mixing clauses; if that solves, name what mixed
       const relaxed = await runClingo(base);
       const relaxedWitnesses = relaxed.Call?.[0]?.Witnesses;
@@ -189,7 +194,7 @@ export async function solve(groups, { oneGlibc = false, one = [] } = {}) {
           .filter(Boolean)
           .map((m) => Number(m[1]));
         const mixed = libs
-          .filter(([lib]) => constrained.includes(lib))
+          .filter(([lib]) => hard.includes(lib))
           .map(([lib, eras]) => [lib, libVersions(offsets, eras)])
           .filter(([, versions]) => versions.length > 1)
           .map(([lib, versions]) => `${lib} ${versions.join("/")}`);
@@ -219,7 +224,7 @@ export async function solve(groups, { oneGlibc = false, one = [] } = {}) {
     if (!groupsOut.has(sf.gid)) {
       const [date, rev12] = revs[off];
       // one entry per tracked lib whose era covers this revision
-      const revLibs = libs
+      const revLibs = display
         .map(([lib, eras]) => {
           const era = eras.find(([, lo, hi]) => lo <= off && off <= hi);
           return era ? [lib, era[0]] : null;
@@ -240,13 +245,15 @@ export async function solve(groups, { oneGlibc = false, one = [] } = {}) {
 
   const plan = [...groupsOut.values()].sort((a, b) => a.off - b.off);
   const offsets = [...new Set(plan.map((g) => g.off))];
-  const planLibs = libs.map(([lib, eras]) => [lib, libVersions(offsets, eras)]);
+  const planLibs = display.map(([lib, eras]) => [lib, libVersions(offsets, eras)]);
+  const glibcs = Object.fromEntries(planLibs).glibc ?? [];
 
   return {
     result: "sat",
     revisions: offsets.length,
     groups: plan,
-    glibcs: Object.fromEntries(planLibs).glibc ?? [],
+    glibcs,
+    glibcRequired: glibcs[glibcs.length - 1] ?? null,
     libs: planLibs,
   };
 }

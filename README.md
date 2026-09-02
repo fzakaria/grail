@@ -94,18 +94,19 @@ newest versions, then fewest mixed library eras, then freshest builds.
 
 ## Coherence: `--one <attr>`
 
-`--one-glibc` refuses plans that mix glibc eras, and `--one <attr>`
-generalizes it to any library: every chosen revision must ship the same
-version of it. Each constraint costs version-freshness, and the solver
-pays exactly what it must:
+`--one <attr>` demands every chosen revision ship the same version of an
+attr — the guard against loading two versions of one library in one
+process. glibc is deliberately NOT constrained this way: its symbol
+versioning makes mixing directional, so every plan just reports the
+link-world minimum, and `--one-glibc` merely prefers fewer eras.
 
 ```console
 $ grail solve 'python3@3.10.* postgresql@13.*'
-    python3 3.10.12      # two glibc eras
-$ grail solve 'python3@3.10.* postgresql@13.*' --one-glibc
-    python3 3.10.5       # one glibc, r823
+    python3 3.10.12
+  glibc: 2.34, 2.37 (link world needs >= 2.37)
 $ grail solve 'python3@3.10.* postgresql@13.*' --one zstd --one openssl
-    python3 3.10.4       # one glibc, one zstd, one openssl, r793
+    python3 3.10.4       # one zstd, one openssl — glibc follows for free
+  glibc: 2.34
 ```
 
 When no coherent plan exists, the solver names what would have mixed
