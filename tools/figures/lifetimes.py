@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Draw the version-lifetime chart for the blog post: python3 minors and
-openssl series as horizontal life-bars over the full index, with the
-coexistence window for `python3@>=3.10 ^openssl@1.1.*` shaded.
+"""Emit the version-lifetime figure as hand-rolled inline SVG for the blog:
+python3 minors and openssl series as life-bars over the full index, with
+the coexistence window for `python3@>=3.10 ^openssl@1.1.*` shaded.
+
+No plotting library. The SVG is meant to be INLINED into the page (a
+Jekyll include), so text uses the blog's JetBrains Mono and every neutral
+color is a var(--token) that follows the site's light/dark palette. The
+two series colors are fixed per mode and validated against both papers.
 
 Usage: lifetimes.py --index <multiverse checkout> --out <svg path>
-Needs plotnine (nix shell -p 'python3.withPackages (ps: [ps.plotnine])').
 """
 
 from __future__ import annotations
@@ -19,12 +23,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from grail.index import Index  # noqa: E402
 from grail.versions import components, sort_key  # noqa: E402
 
-# the validated figure palette (light surface)
-BLUE = "#2a78d6"  # runs that satisfy the constraint
-ORANGE = "#d8622b"  # the coexistence window
-GRAY = "#7d7970"  # every other version: context, deliberately recessive
-INK = "#0b0b0b"
-INK_2 = "#52514e"
+MONO = '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace'
+
+# geometry (viewBox units; the page scales the whole thing)
+X0, X1 = 64, 748
+ROW_H, BAR_H = 17, 7
+TOP = 30  # legend row
+PANEL_GAP = 30
+AXIS_H = 26
 
 
 def _union(intervals):
@@ -38,7 +44,7 @@ def _union(intervals):
 
 
 def _series_rows(index, attr, series_of, matches):
-    """Aggregate an attr's versions into (series, lo, hi, match) segments."""
+    """Aggregate an attr's versions into series -> (runs, matched)."""
     buckets: dict[str, list] = {}
     hit: dict[str, bool] = {}
     for version in index.versions_of(attr):
@@ -47,12 +53,7 @@ def _series_rows(index, attr, series_of, matches):
             continue
         buckets.setdefault(series, []).extend(index.runs_of(attr, version))
         hit[series] = hit.get(series, False) or matches(version)
-
-    rows = []
-    for series, intervals in buckets.items():
-        for lo, hi in _union(intervals):
-            rows.append((series, lo, hi, hit[series]))
-    return rows
+    return {s: (_union(iv), hit[s]) for s, iv in buckets.items()}
 
 
 def main():
@@ -64,25 +65,24 @@ def main():
     index = Index.load(args.index)
     day = lambda off: date.fromisoformat(index.revision(off).date)
 
-    # python3 by minor; >=3.10 satisfies the constraint
-    py_minor = lambda v: ".".join(components(v)[:2])
-    py_rows = _series_rows(
+    t0 = date(2012, 7, 1)
+    t1 = date(2026, 10, 1)
+    x = lambda d: X0 + (d - t0).days / (t1 - t0).days * (X1 - X0)
+
+    py = _series_rows(
         index,
         "python3",
-        py_minor,
+        lambda v: ".".join(components(v)[:2]),
         lambda v: sort_key(v) >= sort_key("3.10"),
     )
 
-    # openssl: 1.0.x and 1.1.x stay distinct, 3.* collapses to one row
     def ssl_series(v):
         c = components(v)
         return "3.x" if c[0] == "3" else ".".join(c[:2]) + ".x"
 
-    ssl_rows = _series_rows(
-        index, "openssl", ssl_series, lambda v: v.startswith("1.1.")
-    )
+    ssl = _series_rows(index, "openssl", ssl_series, lambda v: v.startswith("1.1."))
 
-    # the coexistence window: revisions where both constraints hold
+    # the coexistence window: intersect the two constraints' lifetimes
     py_ok = _union(
         r
         for v in index.versions_of("python3")
@@ -103,108 +103,93 @@ def main():
     ]
     (wlo, whi), *rest = window
     assert not rest, f"expected one window, got {window}"
-    print(f"window: r{wlo}..r{whi}  {day(wlo)} .. {day(whi)}")
+    wl, wr = day(wlo), day(whi)
+    print(f"window: r{wlo}..r{whi}  {wl} .. {wr}")
 
-    import pandas as pd
-    from plotnine import (
-        aes,
-        element_blank,
-        element_line,
-        element_rect,
-        element_text,
-        facet_grid,
-        geom_rect,
-        geom_segment,
-        ggplot,
-        labs,
-        scale_color_manual,
-        scale_x_datetime,
-        scale_y_discrete,
-        theme,
-        theme_minimal,
+    # panel layouts: newest series on top
+    panels = []
+    y = TOP + 18
+    for attr, rows in (("python3", py), ("openssl", ssl)):
+        order = sorted(rows, key=sort_key, reverse=True)
+        panels.append((attr, y, order, rows))
+        y += 14 + len(order) * ROW_H + PANEL_GAP
+    height = y - PANEL_GAP + AXIS_H
+    plot_top, plot_bot = TOP + 8, height - AXIS_H + 4
+
+    svg = []
+    put = svg.append
+    put(
+        f'<svg class="grail-fig" viewBox="0 0 760 {height}" '
+        f'xmlns="http://www.w3.org/2000/svg" role="img" '
+        f'aria-label="version lifetimes of python3 and openssl in '
+        f'nixos-unstable with the coexistence window {wl} to {wr} shaded">'
+    )
+    put(f"""<style>
+  .grail-fig {{ font-family: {MONO}; }}
+  .grail-fig text {{ font-size: 10px; fill: var(--ink-muted, #565046); }}
+  .grail-fig .head {{ font-size: 11px; font-weight: 600; fill: var(--ink, #1a1815); }}
+  .grail-fig .grid {{ stroke: var(--rule, #ddd6c9); stroke-width: 1; }}
+  .grail-fig .ctx {{ fill: var(--ink-faint, #6f685b); opacity: .55; }}
+  .grail-fig .hit {{ fill: #2a78d6; }}
+  .grail-fig .win {{ fill: #d8622b; opacity: .16; }}
+  .grail-fig .wtext {{ fill: #d8622b; font-size: 10px; }}
+  @media (prefers-color-scheme: dark) {{
+    .grail-fig .hit {{ fill: #4a90e2; }}
+    .grail-fig .win {{ fill: #cf7433; opacity: .2; }}
+    .grail-fig .wtext {{ fill: #cf7433; }}
+  }}
+</style>""")
+
+    # year grid, every two years
+    for year in range(2013, 2027, 2):
+        gx = x(date(year, 1, 1))
+        put(
+            f'<line class="grid" x1="{gx:.1f}" y1="{plot_top}" '
+            f'x2="{gx:.1f}" y2="{plot_bot}"/>'
+        )
+        put(
+            f'<text x="{gx:.1f}" y="{plot_bot + 16}" '
+            f'text-anchor="middle">{year}</text>'
+        )
+
+    # the coexistence window, behind the bars
+    put(
+        f'<rect class="win" x="{x(wl):.1f}" y="{plot_top}" '
+        f'width="{max(x(wr) - x(wl), 2):.1f}" height="{plot_bot - plot_top}"/>'
+    )
+    put(
+        f'<text class="wtext" x="{x(wl) - 8:.1f}" y="{plot_top + 12}" '
+        f'text-anchor="end">both hold: {wl} → {wr}</text>'
     )
 
-    frames = []
-    for attr, rows in (("python3", py_rows), ("openssl", ssl_rows)):
-        for series, lo, hi, match in rows:
-            frames.append(
-                {
-                    "attr": attr,
-                    "series": series,
-                    "start": pd.Timestamp(day(lo)),
-                    "end": pd.Timestamp(day(hi)),
-                    "match": "constraint" if match else "other versions",
-                }
+    # legend
+    put(f'<rect class="hit" x="{X0}" y="{TOP - 14}" width="18" height="7" rx="3.5"/>')
+    put(f'<text x="{X0 + 24}" y="{TOP - 6}">matches the constraint</text>')
+    put(
+        f'<rect class="ctx" x="{X0 + 210}" y="{TOP - 14}" width="18" height="7" rx="3.5"/>'
+    )
+    put(f'<text x="{X0 + 234}" y="{TOP - 6}">other versions</text>')
+
+    # panels
+    for attr, py0, order, rows in panels:
+        put(f'<text class="head" x="4" y="{py0}">{attr}</text>')
+        for i, series in enumerate(order):
+            cy = py0 + 12 + i * ROW_H
+            runs, matched = rows[series]
+            put(
+                f'<text x="{X0 - 8}" y="{cy + BAR_H - 1}" '
+                f'text-anchor="end">{series}</text>'
             )
-    df = pd.DataFrame(frames)
+            cls = "hit" if matched else "ctx"
+            for lo, hi in runs:
+                bx, bw = x(day(lo)), max(x(day(hi)) - x(day(lo)), BAR_H)
+                put(
+                    f'<rect class="{cls}" x="{bx:.1f}" y="{cy}" '
+                    f'width="{bw:.1f}" height="{BAR_H}" rx="3.5"/>'
+                )
 
-    # newest series at the top of each facet
-    order = {}
-    for attr in ("python3", "openssl"):
-        keys = sorted(set(df[df.attr == attr].series), key=sort_key)
-        order[attr] = keys
-    df["series"] = pd.Categorical(
-        df["series"], categories=order["openssl"] + order["python3"]
-    )
-    df["attr"] = pd.Categorical(df["attr"], categories=["python3", "openssl"])
-
-    win = pd.DataFrame(
-        {
-            "attr": pd.Categorical(
-                ["python3", "openssl"], categories=["python3", "openssl"]
-            ),
-            "xmin": [pd.Timestamp(day(wlo))] * 2,
-            "xmax": [pd.Timestamp(day(whi))] * 2,
-        }
-    )
-
-    plot = (
-        ggplot(df)
-        + geom_rect(
-            win,
-            aes(xmin="xmin", xmax="xmax"),
-            ymin=-float("inf"),
-            ymax=float("inf"),
-            fill=ORANGE,
-            alpha=0.14,
-        )
-        + geom_segment(
-            aes(x="start", xend="end", y="series", yend="series", color="match"),
-            size=2.6,
-            lineend="round",
-        )
-        + scale_color_manual(
-            values={"constraint": BLUE, "other versions": GRAY}, name=""
-        )
-        + scale_y_discrete()
-        + scale_x_datetime(date_breaks="2 years", date_labels="%Y")
-        + facet_grid("attr ~ .", scales="free_y", space="free_y")
-        + labs(
-            title="python3@>=3.10 ^ openssl@1.1.*",
-            subtitle=(
-                f"version lifetimes in nixos-unstable, 2012–2026; the shaded band "
-                f"is every revision where both hold: {day(wlo)} to {day(whi)}"
-            ),
-            x="",
-            y="",
-        )
-        + theme_minimal()
-        + theme(
-            figure_size=(9.5, 6.2),
-            text=element_text(color=INK_2),
-            plot_title=element_text(color=INK, size=13, family="monospace"),
-            plot_subtitle=element_text(color=INK_2, size=9.5),
-            strip_text=element_text(color=INK, size=10, weight="bold"),
-            axis_text=element_text(color=INK_2, size=8.5),
-            panel_grid_major_y=element_blank(),
-            panel_grid_minor=element_blank(),
-            panel_grid_major_x=element_line(color="#e5e3df", size=0.4),
-            plot_background=element_rect(fill="white", color=None),
-            legend_position="top",
-            legend_title=element_blank(),
-        )
-    )
-    plot.save(args.out, verbose=False)
+    put("</svg>")
+    Path(args.out).write_text("\n".join(svg) + "\n")
     print(f"wrote {args.out}")
 
 
