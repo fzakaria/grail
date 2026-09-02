@@ -9,6 +9,10 @@ import { solve, warmup } from "./solve.js";
 
 const input = document.getElementById("query");
 const oneGlibc = document.getElementById("one-glibc");
+const oneAttrs = document.getElementById("one-attrs");
+
+// the --one attrs: comma or space separated in the small input
+const parseOne = () => oneAttrs.value.split(/[\s,]+/).filter(Boolean);
 const highlight = document.getElementById("highlight");
 const dropdown = document.getElementById("suggest");
 const results = document.getElementById("results");
@@ -133,9 +137,10 @@ function planHTML(plan) {
       lines.push(`    ${a(pkgURL(pin.attr, pin.version), `${pin.attr} ${pin.version}`)}`);
     }
   }
-  if (plan.glibcs.length) {
-    const eras = plan.glibcs.map((v) => a(pkgURL("glibc", v), v));
-    lines.push(`  glibc: ${eras.join(", ")}`);
+  for (const [lib, versions] of plan.libs ?? []) {
+    if (!versions.length) continue;
+    const linked = versions.map((v) => a(pkgURL(lib, v), v));
+    lines.push(`  ${esc(lib)}: ${linked.join(", ")}`);
   }
   return lines.join("\n");
 }
@@ -163,6 +168,8 @@ async function runSolve() {
   url.searchParams.set("q", query);
   if (oneGlibc.checked) url.searchParams.set("glibc", "1");
   else url.searchParams.delete("glibc");
+  if (parseOne().length) url.searchParams.set("one", parseOne().join(","));
+  else url.searchParams.delete("one");
   history.replaceState(null, "", url);
 
   let groups;
@@ -178,7 +185,7 @@ async function runSolve() {
   const started = performance.now();
   let plan;
   try {
-    plan = await solve(groups, { oneGlibc: oneGlibc.checked });
+    plan = await solve(groups, { oneGlibc: oneGlibc.checked, one: parseOne() });
   } catch (e) {
     results.innerHTML = `<p class="error">${esc(String(e.message ?? e))}</p>`;
     return;
@@ -245,6 +252,7 @@ for (const chip of document.querySelectorAll("[data-example]")) {
     e.preventDefault();
     input.value = chip.dataset.example;
     oneGlibc.checked = chip.dataset.glibc === "1";
+    oneAttrs.value = chip.dataset.one ?? "";
     renderHighlight();
     runSolve();
   });
@@ -253,10 +261,14 @@ for (const chip of document.querySelectorAll("[data-example]")) {
 oneGlibc.addEventListener("change", () => {
   if (input.value.trim()) runSolve();
 });
+oneAttrs.addEventListener("change", () => {
+  if (input.value.trim()) runSolve();
+});
 
-// deep links: ?q=...&glibc=1 solves on load
+// deep links: ?q=...&glibc=1&one=zstd,openssl solves on load
 const params = new URL(location).searchParams;
 oneGlibc.checked = params.get("glibc") === "1";
+oneAttrs.value = (params.get("one") ?? "").split(",").filter(Boolean).join(", ");
 const initial = params.get("q");
 if (initial) {
   input.value = initial;

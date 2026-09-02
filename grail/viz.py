@@ -19,8 +19,8 @@ class VizError(RuntimeError):
     pass
 
 
-def _glibc_at(index: Index, off: int) -> str | None:
-    for version, lo, hi in index.glibc_eras():
+def _lib_at(index: Index, lib: str, off: int) -> str | None:
+    for version, lo, hi in index.eras_of(lib):
         if lo <= off <= hi:
             return version
     return None
@@ -31,14 +31,18 @@ def plan_facts(plan: Plan, index: Index) -> str:
     if plan.result != "sat":
         raise VizError(f"cannot draw an unsatisfiable plan: {plan.why}")
 
+    # every era-tracked lib (glibc, plus --one attrs) labels the revision
+    tracked = [lib for lib, _ in plan.libs] or ["glibc"]
+
     lines = []
     pin_id = 0
     for gi, group in enumerate(plan.groups):
         rev = group.revision
-        glibc = _glibc_at(index, rev.off)
         label = f"r{rev.off} · {rev.date}"
-        if glibc is not None:
-            label += f"\\nglibc {glibc}"
+        for lib in tracked:
+            version = _lib_at(index, lib, rev.off)
+            if version is not None:
+                label += f"\\n{lib} {version}"
         lines.append(f'revnode(g{gi}, "{label}").')
         for pin in group.pins:
             lines.append(f'pinnode(p{pin_id}, g{gi}, "{pin.attr} {pin.version}").')

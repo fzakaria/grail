@@ -33,6 +33,14 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
         "--one-glibc", action="store_true", help="refuse plans that mix glibc eras"
     )
     parser.add_argument(
+        "--one",
+        metavar="ATTR",
+        action="append",
+        default=[],
+        help="refuse plans whose revisions mix versions of this attr "
+        "(repeatable; --one glibc is what --one-glibc says)",
+    )
+    parser.add_argument(
         "--before", metavar="DATE", help="only revisions on or before this ISO date"
     )
     parser.add_argument(
@@ -56,8 +64,9 @@ def _print_plan(plan, as_json: bool) -> None:
         print(f"  {rev.label}  ({rev.date}, r{rev.off})")
         for pin in group.pins:
             print(f"    {pin.attr} {pin.version}")
-    if plan.glibcs:
-        print(f"  glibc: {', '.join(plan.glibcs)}")
+    for attr, versions in plan.libs:
+        if versions:
+            print(f"  {attr}: {', '.join(versions)}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -93,7 +102,12 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(str(e))
 
     index = Index.load(args.index)
-    opts = SolveOptions(one_glibc=args.one_glibc, before=args.before, after=args.after)
+    opts = SolveOptions(
+        one_glibc=args.one_glibc,
+        one=args.one,
+        before=args.before,
+        after=args.after,
+    )
     plan = solve(query, index, opts)
 
     if args.command == "solve":

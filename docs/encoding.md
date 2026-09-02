@@ -27,7 +27,8 @@ attrname(s0, "python3").   % names the id for humans; no rule reads it
 group(g0, s0).             % coexistence group membership
 allowed(s0, "3.10.6", 47). % version passed the range; 47 = compareVersions rank
 run(s0, "3.10.6", 835, 864). % one lifetime run, clamped to any date bounds
-glibcera(9, 824, 1005).    % glibc era 9 (2.35) reigned over r824..r1005
+libera("glibc", 9, 824, 1005). % glibc era 9 (2.35) reigned r824..r1005;
+                           % --one <attr> adds more libs to track
 ```
 
 ## Rules
@@ -42,7 +43,7 @@ alive(S, V, R) :- allowed(S, V, _), run(S, V, Lo, Hi), R = Lo..Hi.
 :- at(G, R), group(G, S), pick(S, V), not alive(S, V, R).
 
 used(R) :- at(_, R).
-usedglibc(K) :- used(R), glibcera(K, Lo, Hi), Lo <= R, R <= Hi.
+usedlib(L, K) :- used(R), libera(L, K, Lo, Hi), Lo <= R, R <= Hi.
 ```
 
 Read aloud: pick exactly one version per spec; park each group at one
@@ -56,14 +57,15 @@ Lexicographic, highest priority first:
 ```prolog
 #minimize { 1@4, R : used(R) }.                    % fewest distinct revisions
 #maximize { K@3, S : pick(S, V), allowed(S, V, K) }. % newest versions
-#minimize { 1@2, K : usedglibc(K) }.               % fewest glibc eras
+#minimize { 1@2, L, K : usedlib(L, K) }.           % fewest mixed lib eras
 #maximize { R@1, G : at(G, R) }.                   % freshest builds
 ```
 
-`--one-glibc` appends a hard clause instead of relying on priority 2:
+`--one <attr>` appends a hard clause per attr instead of relying on
+priority 2 (`--one-glibc` is shorthand for `--one glibc`):
 
 ```prolog
-:- usedglibc(K1), usedglibc(K2), K1 < K2.
+:- usedlib("zstd", K1), usedlib("zstd", K2), K1 < K2.
 ```
 
 ## The two flavors of "no"

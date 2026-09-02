@@ -59,9 +59,10 @@ export async function versionsOf(attr) {
   return Object.keys(history).sort((a, b) => compare(b, a));
 }
 
-// glibc's lifetime runs as [version, lo, hi] eras sorted by lo
-export async function glibcEras(tip) {
-  const history = await historyOf("glibc");
+// an attr's lifetime runs as [version, lo, hi] eras sorted by lo — which
+// version of it each revision shipped (glibc, or any --one attr)
+export async function libEras(attr, tip) {
+  const history = await historyOf(attr);
   if (!history) return [];
   const eras = [];
   for (const [version, raw] of Object.entries(history)) {

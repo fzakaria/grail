@@ -107,3 +107,39 @@ class TestErrors(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOneAttr(unittest.TestCase):
+    # --one generalizes the glibc constraint to any attr: every chosen
+    # revision must ship the same version of it. In the fixture, bar has
+    # eras 0.9 [0,6], 1.0 [7,14], 1.1 [15,19]; foo 1.1 lives {5..8, 10..11}
+    # across the 0.9/1.0 boundary and baz 3.0 only at {2,3} inside 0.9.
+    def test_one_forces_shared_era(self):
+        # unconstrained: the soft glibc-era minimization (priority 2, above
+        # freshest-builds) already keeps foo in the 2.30 era with baz, so
+        # foo sits at r8 — bar-1.0 era, since nothing constrains bar
+        free = run("foo@1.1 baz@3.0")
+        self.assertEqual(sorted(g.revision.off for g in free.groups), [3, 8])
+        self.assertEqual(dict(free.libs).get("bar"), None)  # not tracked
+
+        # --one bar: foo must retreat into the 0.9 era, freshest is r6
+        plan = run("foo@1.1 baz@3.0", one=["bar"])
+        self.assertEqual(plan.result, "sat")
+        self.assertEqual(sorted(g.revision.off for g in plan.groups), [3, 6])
+        self.assertEqual(dict(plan.libs)["bar"], ["0.9"])
+
+    # an attr whose versions can never agree across the specs is unsat,
+    # and the explanation names the attr and the versions it would mix
+    def test_one_unsat_names_the_versions(self):
+        # foo 1.0 dies at r4 (bar 0.9), bar@1.1-era starts r15; glibc attr
+        # itself as the lib: foo 1.0 is 2.30-only, bar 1.1 is 2.31-only
+        plan = run("foo@1.0 bar@1.1", one=["glibc"])
+        self.assertEqual(plan.result, "unsat")
+        self.assertIn("glibc", plan.why)
+        self.assertIn("2.30", plan.why)
+        self.assertIn("2.31", plan.why)
+
+    def test_one_unknown_attr(self):
+        plan = run("foo@1.0", one=["nosuchlib"])
+        self.assertEqual(plan.result, "unsat")
+        self.assertIn("nosuchlib", plan.why)

@@ -11,6 +11,7 @@
 {
   specs,
   oneGlibc ? false,
+  one ? [ ],
   before ? null,
   after ? null,
   ...
@@ -20,6 +21,7 @@ let
     inherit
       specs
       oneGlibc
+      one
       before
       after
       ;
@@ -44,6 +46,7 @@ let
   solverArgs = [
     "specs"
     "oneGlibc"
+    "one"
     "before"
     "after"
   ];

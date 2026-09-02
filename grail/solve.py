@@ -12,7 +12,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .facts import ONE_GLIBC_RULE, InfeasibleError, SpecFacts, emit, resolve_specs
+from .facts import InfeasibleError, SpecFacts, emit, one_rule, resolve_specs
 from .index import Index, Revision
 from .specs import Query
 
@@ -26,6 +26,9 @@ _DEFAULT_SOLVE_LP = Path(__file__).resolve().parent.parent / "asp" / "solve.lp"
 @dataclass
 class SolveOptions:
     one_glibc: bool = False
+    # attrs whose version must agree across every chosen revision; the
+    # glibc constraint generalized (--one zstd, --one openssl, ...)
+    one: list[str] = field(default_factory=list)
     before: str | None = None  # ISO date, inclusive
     after: str | None = None  # ISO date, inclusive
     clingo_bin: str = field(
@@ -56,6 +59,9 @@ class Plan:
     revisions: int = 0
     groups: list[GroupPlan] = field(default_factory=list)
     glibcs: list[str] = field(default_factory=list)
+    # every era-tracked lib (glibc plus --one attrs) with the versions the
+    # plan's revisions ship, in era order
+    libs: list[tuple[str, list[str]]] = field(default_factory=list)
     why: str | None = None
 
     def to_dict(self) -> dict:
@@ -75,6 +81,9 @@ class Plan:
                 for g in self.groups
             ],
             "glibcs": self.glibcs,
+            "libs": [
+                {"attr": lib, "versions": versions} for lib, versions in self.libs
+            ],
             "why": self.why,
         }
 
@@ -149,19 +158,17 @@ def _never_overlapped(spec_facts: list[SpecFacts], index: Index) -> str | None:
     return None
 
 
-def _glibcs_of(offsets: list[int], index: Index) -> list[str]:
+def _lib_versions(offsets: list[int], index: Index, lib: str) -> list[str]:
+    """The versions of one era-tracked lib the offsets fall in, era order."""
     names = []
-    for version, lo, hi in index.glibc_eras():
-        if any(lo <= off <= hi for off in offsets):
+    for version, lo, hi in index.eras_of(lib):
+        if version not in names and any(lo <= off <= hi for off in offsets):
             names.append(version)
-    return sorted(
-        set(names),
-        key=lambda v: [version for version, _, _ in index.glibc_eras()].index(v),
-    )
+    return names
 
 
 def _plan_from_atoms(
-    atoms: list[str], spec_facts: list[SpecFacts], index: Index
+    atoms: list[str], spec_facts: list[SpecFacts], index: Index, libs: list[str]
 ) -> Plan:
     picked: dict[str, str] = {}
     for m in _PICK_RE.finditer(" ".join(atoms)):
@@ -177,13 +184,15 @@ def _plan_from_atoms(
         gp.pins.append(Pin(sf.spec.attr, picked[sf.sid]))
 
     offsets = sorted({g.revision.off for g in groups.values()})
+    lib_versions = [(lib, _lib_versions(offsets, index, lib)) for lib in libs]
     return Plan(
         result="sat",
         revisions=len(offsets),
         groups=[
             groups[g] for g in sorted(groups, key=lambda g: groups[g].revision.off)
         ],
-        glibcs=_glibcs_of(offsets, index),
+        glibcs=dict(lib_versions).get("glibc", []),
+        libs=lib_versions,
     )
 
 
@@ -203,29 +212,45 @@ def solve(query: Query, index: Index, opts: SolveOptions | None = None) -> Plan:
             return Plan(result="unsat", why=f"no revision on or before {opts.before}")
         hi_bound = last
 
+    # the era-tracked libs: glibc always (reported and softly minimized),
+    # every --one attr additionally gets a hard no-mixing clause
+    constrained = list(dict.fromkeys(opts.one + (["glibc"] if opts.one_glibc else [])))
+    libs = list(dict.fromkeys(["glibc"] + constrained))
+    missing = [lib for lib in libs if not index.has_attr(lib)]
+    if missing:
+        return Plan(
+            result="unsat",
+            why="; ".join(f"--one {lib}: not in the index" for lib in missing),
+        )
+
     try:
         spec_facts = resolve_specs(query, index, lo_bound, hi_bound)
     except InfeasibleError as e:
         return Plan(result="unsat", why="; ".join(e.reasons))
 
-    facts = emit(spec_facts, index)
-    extra = ONE_GLIBC_RULE if opts.one_glibc else ""
+    facts = emit(spec_facts, index, libs)
+    extra = "".join(one_rule(lib) for lib in constrained)
     atoms = _model_atoms(_run_clingo(opts, facts, extra))
 
     if atoms is not None:
-        return _plan_from_atoms(atoms, spec_facts, index)
+        return _plan_from_atoms(atoms, spec_facts, index, libs)
 
     # UNSAT: explain. A coexistence group whose members never overlapped is
     # the common cause and is provable from the intervals alone.
     why = _never_overlapped(spec_facts, index)
-    if why is None and opts.one_glibc:
-        # relax the glibc clause; if that solves, the eras were the problem
+    if why is None and constrained:
+        # relax the no-mixing clauses; if that solves, name what mixed
         relaxed = _model_atoms(_run_clingo(opts, facts, ""))
         if relaxed is not None:
-            plan = _plan_from_atoms(relaxed, spec_facts, index)
-            eras = ", ".join(plan.glibcs)
-            why = (
-                f"satisfiable only by mixing glibc eras ({eras}); "
-                f"--one-glibc forbids that"
-            )
+            plan = _plan_from_atoms(relaxed, spec_facts, index, libs)
+            mixed = [
+                f"{lib} {'/'.join(versions)}"
+                for lib, versions in plan.libs
+                if lib in constrained and len(versions) > 1
+            ]
+            if mixed:
+                why = (
+                    f"satisfiable only by mixing {', '.join(mixed)}; "
+                    f"--one forbids that"
+                )
     return Plan(result="unsat", why=why or "no model satisfies the query")

@@ -93,8 +93,10 @@ def _q(s: str) -> str:
     return '"' + s.replace('"', '\\"') + '"'
 
 
-def emit(spec_facts: list[SpecFacts], index: Index) -> str:
-    """The facts block handed to clingo alongside asp/solve.lp."""
+def emit(spec_facts: list[SpecFacts], index: Index, libs: list[str]) -> str:
+    """The facts block handed to clingo alongside asp/solve.lp. `libs` are
+    the attrs whose version eras become libera facts — glibc always, plus
+    every --one attr."""
     lines = []
 
     for sf in spec_facts:
@@ -107,12 +109,14 @@ def emit(spec_facts: list[SpecFacts], index: Index) -> str:
             for lo, hi in runs:
                 lines.append(f"run({sf.sid}, {_q(version)}, {lo}, {hi}).")
 
-    # glibc eras, keyed by their rank so #minimize counts eras not names
-    for k, (_, lo, hi) in enumerate(index.glibc_eras()):
-        lines.append(f"glibcera({k}, {lo}, {hi}).")
+    # version eras per library, keyed by rank so #minimize counts eras
+    for lib in libs:
+        for k, (_, lo, hi) in enumerate(index.eras_of(lib)):
+            lines.append(f"libera({_q(lib)}, {k}, {lo}, {hi}).")
 
     return "\n".join(lines) + "\n"
 
 
-# The optional hard clause --one-glibc appends after the facts.
-ONE_GLIBC_RULE = ":- usedglibc(K1), usedglibc(K2), K1 < K2.\n"
+def one_rule(lib: str) -> str:
+    """The hard clause --one <attr> appends: its eras must not mix."""
+    return f":- usedlib({_q(lib)}, K1), usedlib({_q(lib)}, K2), K1 < K2.\n"

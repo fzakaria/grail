@@ -72,3 +72,30 @@ cannot justify, fetch precise facts for exactly the candidate paths on that
 frontier, add them, re-solve. clingo's multi-shot API exists for precisely
 this add-facts-and-continue loop. Every refined fact lands in the immutable
 cache, so the corpus densifies along the paths people actually query.
+
+## Beyond glibc — `--one <attr>`
+
+The era constraint generalizes to any attr: `--one zstd --one openssl`
+demands that every chosen revision ship the same version of zstd and of
+openssl. The data is the same lifetime index glibc uses — which version of
+the attr each revision shipped — so no closure analysis is needed, and the
+encoding is the glibc rule with the library as a parameter.
+
+What it guarantees: version-level ABI agreement. The scenario it exists
+for is real and has happened in nixpkgs: an app vendors one zstd while
+libsystemd dlopens another, the two disagree on struct layout, and logging
+corrupts the address space. `--one zstd` makes any plan that ships two
+zstd versions unsatisfiable, and the solver names what would have mixed:
+
+```console
+$ grail solve 'ffmpeg@5.* nodejs@16.*' --one zstd --one openssl
+unsatisfiable: satisfiable only by mixing zstd 1.5.2/1.5.5,
+openssl 1.1.1q/3.0.10; --one forbids that
+```
+
+What it deliberately does not guarantee: one store path. Two revisions can
+ship the same zstd version as different rebuilds; agreeing on the version
+is the ABI contract, agreeing on the path needs one revision — that is
+what a `^` coexistence group is for. And no link-level constraint sees
+API-level mixing: an object created by one library version handed to
+another resolves its symbols fine and corrupts its fields anyway.

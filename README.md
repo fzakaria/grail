@@ -90,8 +90,28 @@ Exact pins stay multiverse's business: its greedy solver is O(n log n)
 with an optimality proof. Ranges are hitting set over interval unions —
 NP-hard, the multiverse design doc names the cliff — and that is where
 clingo earns its keep. Objectives, lexicographic: fewest revisions, then
-newest versions, then fewest glibc eras, then freshest builds.
-`--one-glibc` turns era-mixing into a hard error.
+newest versions, then fewest mixed library eras, then freshest builds.
+
+## Coherence: `--one <attr>`
+
+`--one-glibc` refuses plans that mix glibc eras, and `--one <attr>`
+generalizes it to any library: every chosen revision must ship the same
+version of it. Each constraint costs version-freshness, and the solver
+pays exactly what it must:
+
+```console
+$ grail solve 'python3@3.10.* postgresql@13.*'
+    python3 3.10.12      # two glibc eras
+$ grail solve 'python3@3.10.* postgresql@13.*' --one-glibc
+    python3 3.10.5       # one glibc, r823
+$ grail solve 'python3@3.10.* postgresql@13.*' --one zstd --one openssl
+    python3 3.10.4       # one glibc, one zstd, one openssl, r793
+```
+
+When no coherent plan exists, the solver names what would have mixed
+(`satisfiable only by mixing zstd 1.5.2/1.5.5, openssl 1.1.1q/3.0.10`).
+It guarantees version-level ABI agreement, not one store path — one store
+path is what a `^` coexistence group is for. See `docs/glibc.md`.
 
 ## Running
 

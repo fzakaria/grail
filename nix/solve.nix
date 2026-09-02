@@ -10,6 +10,7 @@
 {
   specs,
   oneGlibc ? false,
+  one ? [ ],
   before ? null,
   after ? null,
   name ? "grail-plan",
@@ -22,6 +23,10 @@ let
     "--json"
   ]
   ++ lib.optional oneGlibc "--one-glibc"
+  ++ lib.concatMap (attr: [
+    "--one"
+    attr
+  ]) one
   ++ lib.optionals (before != null) [
     "--before"
     before

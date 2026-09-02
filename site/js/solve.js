@@ -4,7 +4,7 @@
 // there is none, with the same interval analysis the CLI uses.
 
 import clingo from "clingo-wasm";
-import { closeRuns, glibcEras, historyOf, revisions } from "./data.js";
+import { closeRuns, libEras, historyOf, revisions } from "./data.js";
 import { compare, components } from "./versions.js";
 import { specMatches } from "./specs.js";
 
@@ -62,7 +62,7 @@ async function resolveSpecs(groups, tip) {
   return { resolved, problems };
 }
 
-function emitFacts(resolved, eras) {
+function emitFacts(resolved, libs) {
   const lines = [];
   for (const sf of resolved) {
     lines.push(`spec(${sf.sid}).`);
@@ -73,7 +73,11 @@ function emitFacts(resolved, eras) {
       for (const [lo, hi] of runs) lines.push(`run(${sf.sid}, ${q(version)}, ${lo}, ${hi}).`);
     }
   }
-  eras.forEach(([, lo, hi], k) => lines.push(`glibcera(${k}, ${lo}, ${hi}).`));
+  for (const [lib, eras] of libs) {
+    eras.forEach(([, lo, hi], k) =>
+      lines.push(`libera(${q(lib)}, ${k}, ${lo}, ${hi}).`),
+    );
+  }
   return lines.join("\n");
 }
 
@@ -127,8 +131,9 @@ function neverOverlapped(resolved, revs) {
   return null;
 }
 
-// the hard clause --one-glibc appends, same text as grail/facts.py
-const ONE_GLIBC_RULE = ":- usedglibc(K1), usedglibc(K2), K1 < K2.\n";
+// the hard clause --one <attr> appends, same text as grail/facts.py
+const oneRule = (lib) =>
+  `:- usedlib(${q(lib)}, K1), usedlib(${q(lib)}, K2), K1 < K2.\n`;
 
 // 0 = compute ALL models, so the search runs to the proven optimum and the
 // last witness is it; the default of one model returns the first found
@@ -138,23 +143,43 @@ async function runClingo(program) {
   return answer;
 }
 
-export async function solve(groups, { oneGlibc = false } = {}) {
+// versions of one era-tracked lib that the offsets fall in, era order
+function libVersions(offsets, eras) {
+  const names = [];
+  for (const [version, lo, hi] of eras) {
+    if (!names.includes(version) && offsets.some((o) => lo <= o && o <= hi))
+      names.push(version);
+  }
+  return names;
+}
+
+export async function solve(groups, { oneGlibc = false, one = [] } = {}) {
   const revs = await revisions();
   const tip = revs.length - 1;
-  const eras = await glibcEras(tip);
+
+  // era-tracked libs: glibc always; every --one attr gets a hard clause
+  const constrained = [...new Set([...one, ...(oneGlibc ? ["glibc"] : [])])];
+  const libNames = [...new Set(["glibc", ...constrained])];
+  const libs = [];
+  for (const lib of libNames) {
+    const eras = await libEras(lib, tip);
+    if (!eras.length && lib !== "glibc")
+      return { result: "unsat", why: `--one ${lib}: not in the index` };
+    libs.push([lib, eras]);
+  }
 
   const { resolved, problems } = await resolveSpecs(groups, tip);
   if (problems.length) return { result: "unsat", why: problems.join("; ") };
 
-  const base = emitFacts(resolved, eras) + "\n" + (await solveLp());
-  const program = base + (oneGlibc ? ONE_GLIBC_RULE : "");
+  const base = emitFacts(resolved, libs) + "\n" + (await solveLp());
+  const program = base + constrained.map(oneRule).join("");
   const answer = await runClingo(program);
 
   let witnesses = answer.Call?.[0]?.Witnesses;
   if (answer.Result === "UNSATISFIABLE" || !witnesses?.length) {
     let why = neverOverlapped(resolved, revs);
-    if (why === null && oneGlibc) {
-      // relax the glibc clause; if that solves, the eras were the problem
+    if (why === null && constrained.length) {
+      // relax the no-mixing clauses; if that solves, name what mixed
       const relaxed = await runClingo(base);
       const relaxedWitnesses = relaxed.Call?.[0]?.Witnesses;
       if (relaxedWitnesses?.length) {
@@ -163,12 +188,15 @@ export async function solve(groups, { oneGlibc = false } = {}) {
           .map((a) => a.match(/^at\(g\d+,(\d+)\)$/))
           .filter(Boolean)
           .map((m) => Number(m[1]));
-        const mixed = eras
-          .filter(([, lo, hi]) => offsets.some((off) => lo <= off && off <= hi))
-          .map(([version]) => version);
-        why =
-          `satisfiable only by mixing glibc eras (${[...new Set(mixed)].join(", ")});\n` +
-          `one glibc era forbids that`;
+        const mixed = libs
+          .filter(([lib]) => constrained.includes(lib))
+          .map(([lib, eras]) => [lib, libVersions(offsets, eras)])
+          .filter(([, versions]) => versions.length > 1)
+          .map(([lib, versions]) => `${lib} ${versions.join("/")}`);
+        if (mixed.length)
+          why =
+            `satisfiable only by mixing ${mixed.join(", ")};\n` +
+            `keeping one version of each forbids that`;
       }
     }
     return { result: "unsat", why: why ?? "no model satisfies the query" };
@@ -190,13 +218,20 @@ export async function solve(groups, { oneGlibc = false } = {}) {
     const off = where.get(sf.gid);
     if (!groupsOut.has(sf.gid)) {
       const [date, rev12] = revs[off];
-      const era = eras.find(([, lo, hi]) => lo <= off && off <= hi);
+      // one entry per tracked lib whose era covers this revision
+      const revLibs = libs
+        .map(([lib, eras]) => {
+          const era = eras.find(([, lo, hi]) => lo <= off && off <= hi);
+          return era ? [lib, era[0]] : null;
+        })
+        .filter(Boolean);
       groupsOut.set(sf.gid, {
         off,
         date,
         rev: rev12,
         label: `${date}-${rev12}`,
-        glibc: era ? era[0] : null,
+        glibc: Object.fromEntries(revLibs).glibc ?? null,
+        libs: revLibs,
         pins: [],
       });
     }
@@ -205,15 +240,14 @@ export async function solve(groups, { oneGlibc = false } = {}) {
 
   const plan = [...groupsOut.values()].sort((a, b) => a.off - b.off);
   const offsets = [...new Set(plan.map((g) => g.off))];
-  const glibcs = eras
-    .filter(([, lo, hi]) => offsets.some((off) => lo <= off && off <= hi))
-    .map(([version]) => version);
+  const planLibs = libs.map(([lib, eras]) => [lib, libVersions(offsets, eras)]);
 
   return {
     result: "sat",
     revisions: offsets.length,
     groups: plan,
-    glibcs: [...new Set(glibcs)],
+    glibcs: Object.fromEntries(planLibs).glibc ?? [],
+    libs: planLibs,
   };
 }
 

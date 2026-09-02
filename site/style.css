@@ -346,3 +346,17 @@ svg.plan a {
 svg.plan a:hover rect {
   stroke: var(--accent);
 }
+.opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.4rem;
+}
+label.opt input[type="text"] {
+  font: 13px ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  width: 11rem;
+}

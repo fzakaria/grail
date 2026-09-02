@@ -94,11 +94,15 @@ class Index:
                 return r.off
         return None
 
-    def glibc_eras(self) -> list[tuple[str, int, int]]:
-        """(version, lo, hi) lifetime runs of glibc, for era facts."""
+    def eras_of(self, attr: str) -> list[tuple[str, int, int]]:
+        """(version, lo, hi) lifetime runs of an attr, as version eras:
+        which version of it each revision shipped."""
         eras = []
-        for version in self.versions_of(GLIBC_ATTR):
-            for lo, hi in self.runs_of(GLIBC_ATTR, version):
+        for version in self.versions_of(attr):
+            for lo, hi in self.runs_of(attr, version):
                 eras.append((version, lo, hi))
         eras.sort(key=lambda e: e[1])
         return eras
+
+    def glibc_eras(self) -> list[tuple[str, int, int]]:
+        return self.eras_of(GLIBC_ATTR)

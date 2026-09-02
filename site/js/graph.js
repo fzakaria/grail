@@ -55,9 +55,9 @@ export function planSVG(plan) {
     clusters.reduce((sum, c) => sum + c.w, 0) + GROUP_GAP * (clusters.length - 1) + 8;
   const pinsH = Math.max(...clusters.map((c) => (c.pins.length ? NODE_H : 0)));
   const revH = NODE_H;
-  // a third row when eras are known: one node per DISTINCT glibc, so a
-  // one-era plan draws every revision converging on a single libc node
-  const hasEras = plan.groups.some((g) => g.glibc);
+  // a third row when eras are known: one node per distinct (lib, version),
+  // so a coherent plan draws every revision converging on one node per lib
+  const hasEras = plan.groups.some((g) => g.libs?.length);
   const height = pinsH + ROW_GAP + revH + (hasEras ? ROW_GAP + NODE_H : 0) + 8;
 
   // a curved edge ending in an arrowhead at (x2, y2)
@@ -68,7 +68,7 @@ export function planSVG(plan) {
 
   let x = 4;
   const parts = [];
-  const eraSources = new Map(); // glibc version -> [revision center x]
+  const eraSources = new Map(); // "lib version" label -> [revision center x]
   for (const c of clusters) {
     const pinsW =
       c.pins.reduce((sum, p) => sum + p.w, 0) + GAP_X * (c.pins.length - 1);
@@ -84,29 +84,34 @@ export function planSVG(plan) {
     parts.push(
       box(revX, revY, c.revW, revH, c.revLines, "rev", revURL(c.group.rev)),
     );
-    if (c.group.glibc) {
-      if (!eraSources.has(c.group.glibc)) eraSources.set(c.group.glibc, []);
-      eraSources.get(c.group.glibc).push(revX + c.revW / 2);
+    // every era-tracked lib (glibc, plus --one attrs) becomes a node in
+    // the third row; a coherent plan converges on one node per lib
+    for (const [lib, version] of c.group.libs ?? []) {
+      const key = `${lib} ${version}`;
+      if (!eraSources.has(key)) eraSources.set(key, []);
+      eraSources.get(key).push(revX + c.revW / 2);
     }
     x += c.w + GROUP_GAP;
   }
 
-  // one node per distinct era, centered under the revisions it serves;
-  // a one-era plan draws every revision converging on a single libc node
+  // one node per distinct (lib, version), centered under the revisions it
+  // serves and nudged right when neighbors would overlap
   const eraY = pinsH + ROW_GAP + revH + ROW_GAP;
   let lastRight = -Infinity;
-  for (const [glibc, sources] of eraSources) {
-    const label = `glibc ${glibc}`;
+  for (const [label, sources] of eraSources) {
     const w = nodeWidth([label]);
     let ex = sources.reduce((sum, s) => sum + s, 0) / sources.length - w / 2;
     ex = Math.max(ex, lastRight + GAP_X, 4);
     lastRight = ex + w;
     for (const s of sources)
       parts.push(edge(s, pinsH + ROW_GAP + revH, ex + w / 2, eraY));
-    parts.push(box(ex, eraY, w, NODE_H, [label], "lib", pkgURL("glibc", glibc)));
+    const [lib, version] = label.split(" ");
+    parts.push(box(ex, eraY, w, NODE_H, [label], "lib", pkgURL(lib, version)));
   }
 
-  return `<svg class="plan" viewBox="0 0 ${totalW} ${height}"
-    style="max-width:${totalW}px" font-family='${FONT}' font-size="12"
+  // the era row can outgrow the clusters when nodes nudge right
+  const finalW = Math.max(totalW, lastRight + 4);
+  return `<svg class="plan" viewBox="0 0 ${finalW} ${height}"
+    style="max-width:${finalW}px" font-family='${FONT}' font-size="12"
     role="img" aria-label="the solved plan">${parts.join("")}</svg>`;
 }
