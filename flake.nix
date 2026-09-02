@@ -27,13 +27,17 @@
           pkgs = nixpkgs.legacyPackages.${system};
         in
         rec {
-          # the CLI, with the multiverse index and clingo baked in;
-          # $GRAIL_INDEX still overrides for a local checkout
+          # nixpkgs has neither clingraph nor its clorm dependency
+          clingraph = import ./nix/clingraph.nix { inherit pkgs; };
+
+          # the CLI, with the multiverse index, clingo and clingraph baked
+          # in; $GRAIL_INDEX still overrides for a local checkout
           grail = pkgs.writeShellApplication {
             name = "grail";
             runtimeInputs = [
               pkgs.python3
               pkgs.clingo
+              clingraph
             ];
             text = ''
               export GRAIL_INDEX="''${GRAIL_INDEX:-${multiverse}}"
@@ -91,13 +95,15 @@
           pkgs = nixpkgs.legacyPackages.${system};
         in
         {
-          # the whole Python test suite, clingo included, offline
+          # the whole Python test suite, clingo and clingraph included,
+          # offline
           tests =
             pkgs.runCommand "grail-tests"
               {
                 nativeBuildInputs = [
                   pkgs.python3
                   pkgs.clingo
+                  self.packages.${system}.clingraph
                 ];
               }
               ''
@@ -140,6 +146,7 @@
             packages = [
               pkgs.python3
               pkgs.clingo
+              self.packages.${system}.clingraph
               pkgs.jq
             ];
             env.GRAIL_INDEX = "${multiverse}";

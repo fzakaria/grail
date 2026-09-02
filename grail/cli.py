@@ -67,6 +67,11 @@ def main(argv: list[str] | None = None) -> int:
     p_solve = sub.add_parser("solve", help="resolve a query and print the plan")
     _add_common(p_solve)
     p_solve.add_argument("--json", action="store_true", help="print the plan as JSON")
+    p_solve.add_argument(
+        "--viz",
+        metavar="FILE",
+        help="draw the plan via clingraph (.dot for graphviz source, else SVG)",
+    )
 
     p_lock = sub.add_parser("lock", help="resolve a query and write a multiverse.lock")
     _add_common(p_lock)
@@ -93,6 +98,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "solve":
         _print_plan(plan, args.json)
+        if args.viz and plan.result == "sat":
+            from .viz import render
+
+            render(plan, index, args.viz)
+            print(f"drew {args.viz}")
         return 0 if plan.result == "sat" else 1
 
     try:
