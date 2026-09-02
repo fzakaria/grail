@@ -13,12 +13,24 @@
 pkgs.runCommand "grail-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
   mkdir -p $out
   cp -r ${self}/site/. $out/
-  cp ${self}/asp/solve.lp $out/solve.lp
-
   chmod -R u+w $out
+  # solve.lp rides inside js/ so the content hash below covers it: the
+  # solver a page fetches always matches the modules that fetched it
+  cp ${self}/asp/solve.lp $out/js/solve.lp
   python3 ${self}/tools/build-site-data.py \
     --index ${multiverse} \
     --out $out/data
 
   substituteInPlace $out/js/app.js --replace-fail "__STORE_PATH__" "$out"
+
+  # The multiverse cache-busting trick, verbatim: hash the module tree and
+  # rename it js.<hash>, so the served HTML and every module (and solve.lp)
+  # it pulls in can never be a mismatched pair across deploys. Hashing runs
+  # after the substitutions above, so the name covers exactly the bytes
+  # served. Modules import each other by relative path, so renaming the
+  # directory breaks nothing.
+  hash=$(find $out/js -type f | LC_ALL=C sort |
+    xargs sha256sum | sha256sum | cut -c1-12)
+  mv $out/js "$out/js.$hash"
+  substituteInPlace $out/index.html --replace-fail "js/app.js" "js.$hash/app.js"
 ''

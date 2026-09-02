@@ -147,7 +147,7 @@
               }
               ''
                 test -f ${self.packages.${system}.site}/index.html
-                test -f ${self.packages.${system}.site}/solve.lp
+                test -f ${self.packages.${system}.site}/js.*/solve.lp
                 test -f ${self.packages.${system}.site}/data/attrs.json
 
                 python3 - <<'EOF' > expected.json

@@ -10,7 +10,14 @@ import { specMatches } from "./specs.js";
 
 let solveLpPromise;
 function solveLp() {
-  solveLpPromise ??= fetch("solve.lp").then((r) => r.text());
+  // resolved against this module's own URL: the site build copies
+  // solve.lp into the content-hashed js.<hash>/ tree, so the fetched
+  // encoding always matches the module that fetched it. Serving a raw
+  // checkout will 404 here — `nix run .#serve` (the built tree) is the
+  // dev flow.
+  solveLpPromise ??= fetch(new URL("solve.lp", import.meta.url)).then((r) =>
+    r.text(),
+  );
   return solveLpPromise;
 }
 
