@@ -1,0 +1,54 @@
+# Formatting first, then `nix flake check`, which runs everything the flake
+# defines — all of it offline:
+#
+#   checks.tests — the whole Python suite (grammar, compareVersions parity,
+#                  solver goldens against the mini-index, lock format, the
+#                  ELF fact extractor) with clingo in the sandbox
+#   checks.ifd   — the import-from-derivation path end to end against the
+#                  offline mini-index: solve in the sandbox, assert on the
+#                  imported plan in eval
+#
+# packages.demo is deliberately not a check: it solves against the real
+# index and materialises a 2022 nixpkgs from the network, which is a demo,
+# not an invariant.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # x86_64 carries the formatting step; both Linux systems run the checks,
+    # since clingo and the Python suite are the only things under test and
+    # they are cheap everywhere.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            full: true
+          - runner: ubuntu-24.04-arm
+            full: false
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      - name: Formatting
+        if: matrix.full
+        run: nix fmt -- --ci
+
+      - name: Tests
+        run: nix flake check -L

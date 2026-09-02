@@ -73,14 +73,14 @@ glibc ldd (GNU libc) 2.35
 
 ## The pieces
 
-| Path | What it is |
-|---|---|
-| `docs/grammar.md` | the query BNF: `@` ranges, `^` coexistence, `..`, `\|\|`, prefix semantics matching `mvs solve` |
-| `asp/solve.lp` | the entire solver, ~40 lines of ASP |
-| `docs/encoding.md` | facts, rules, the lexicographic objective stack, why greedy stops at ranges |
-| `docs/glibc.md` | coexistence as the safe default; the verneed fact tiers for mixing worlds |
-| `tools/elf_facts.py` | tier-1 prototype: DT_NEEDED / `.gnu.version_r` / RUNPATH / interp as ASP facts, stdlib only |
-| `PLAN.md` | the full design |
+| Path                 | What it is                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| `docs/grammar.md`    | the query BNF: `@` ranges, `^` coexistence, `..`, `\|\|`, prefix semantics matching `mvs solve` |
+| `asp/solve.lp`       | the entire solver, ~40 lines of ASP                                                             |
+| `docs/encoding.md`   | facts, rules, the lexicographic objective stack, why greedy stops at ranges                     |
+| `docs/glibc.md`      | coexistence as the safe default; the verneed fact tiers for mixing worlds                       |
+| `tools/elf_facts.py` | tier-1 prototype: DT_NEEDED / `.gnu.version_r` / RUNPATH / interp as ASP facts, stdlib only     |
+| `PLAN.md`            | the full design                                                                                 |
 
 Exact pins stay multiverse's business: its greedy solver is O(n log n)
 with an optimality proof. Ranges are hitting set over interval unions —

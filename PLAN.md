@@ -26,14 +26,14 @@ it was proud not to need.
 
 ## What already exists and is reused, not rebuilt
 
-| Piece | Source | Role in grail |
-|---|---|---|
-| `revisions.json` | multiverse | offset -> {rev, date, name, narHash}; 1,541 rows |
-| `index/history.json` | multiverse | attr -> version -> lifetime runs `[lo, hi]`, nested runs for holes, `null` = open tip |
-| `mv.at <selector>` | multiverse | materialize a revision as a real nixpkgs |
-| `mv.pinPlan` / `mv.solvePins` | multiverse | exact-pin minimization (greedy, proven) — grail defers to it when a query has no ranges |
-| `multiverse.lock` v1 | mvs | `{version: 1, pins: {attr: {rev, label, version, date}}}` — grail's lock output IS this format, so `mv.readLock`, the NixOS/darwin/home-manager modules, and `mvs lock status` all work on a grail-written lock unchanged |
-| glibc lifetimes | history.json | `glibc` is an indexed attr, so "which glibc reigned at revision R" is metadata — no ELF analysis needed for the coexistence tier |
+| Piece                         | Source       | Role in grail                                                                                                                                                                                                             |
+| ----------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `revisions.json`              | multiverse   | offset -> {rev, date, name, narHash}; 1,541 rows                                                                                                                                                                          |
+| `index/history.json`          | multiverse   | attr -> version -> lifetime runs `[lo, hi]`, nested runs for holes, `null` = open tip                                                                                                                                     |
+| `mv.at <selector>`            | multiverse   | materialize a revision as a real nixpkgs                                                                                                                                                                                  |
+| `mv.pinPlan` / `mv.solvePins` | multiverse   | exact-pin minimization (greedy, proven) — grail defers to it when a query has no ranges                                                                                                                                   |
+| `multiverse.lock` v1          | mvs          | `{version: 1, pins: {attr: {rev, label, version, date}}}` — grail's lock output IS this format, so `mv.readLock`, the NixOS/darwin/home-manager modules, and `mvs lock status` all work on a grail-written lock unchanged |
+| glibc lifetimes               | history.json | `glibc` is an indexed attr, so "which glibc reigned at revision R" is metadata — no ELF analysis needed for the coexistence tier                                                                                          |
 
 ## Architecture
 
@@ -237,7 +237,7 @@ Lives in fzakaria.com as `_posts/2026-09-XX-the-holy-grail-of-nixpkgs.md`.
 Outline:
 
 1. Cold open: `nixpkgs has never had version ranges. Here is
-   python3@>=3.10 ^openssl@1.1.* resolving.` Console block first, prose second.
+python3@>=3.10 ^openssl@1.1.* resolving.` Console block first, prose second.
 2. Why nixpkgs never needed a solver (one version per attr) and what
    multiverse changed (307k versions — now choice exists, so solving exists).
    Link the multiverse and follows posts.

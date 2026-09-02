@@ -47,7 +47,9 @@ class Term:
             return _is_prefix(self.version, candidate)
         if self.op == "interval":
             assert self.upper is not None
-            below = compare(candidate, self.upper) <= 0 or _is_prefix(self.upper, candidate)
+            below = compare(candidate, self.upper) <= 0 or _is_prefix(
+                self.upper, candidate
+            )
             return compare(candidate, self.version) >= 0 and below
         c = compare(candidate, self.version)
         return {

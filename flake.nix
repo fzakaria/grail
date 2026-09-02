@@ -123,6 +123,13 @@
         }
       );
 
+      formatter = forAllSystems (
+        system:
+        import ./nix/formatter.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+        }
+      );
+
       devShells = forAllSystems (
         system:
         let

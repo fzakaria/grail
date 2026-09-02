@@ -21,13 +21,23 @@ from .specs import ParseError, parse_query
 
 
 def _add_common(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("query", nargs="+", help="specs, e.g. 'python3@>=3.10 ^openssl@1.1.*'")
-    parser.add_argument("--index", default=os.environ.get("GRAIL_INDEX"),
-                        help="multiverse index directory (default: $GRAIL_INDEX)")
-    parser.add_argument("--one-glibc", action="store_true",
-                        help="refuse plans that mix glibc eras")
-    parser.add_argument("--before", metavar="DATE", help="only revisions on or before this ISO date")
-    parser.add_argument("--after", metavar="DATE", help="only revisions on or after this ISO date")
+    parser.add_argument(
+        "query", nargs="+", help="specs, e.g. 'python3@>=3.10 ^openssl@1.1.*'"
+    )
+    parser.add_argument(
+        "--index",
+        default=os.environ.get("GRAIL_INDEX"),
+        help="multiverse index directory (default: $GRAIL_INDEX)",
+    )
+    parser.add_argument(
+        "--one-glibc", action="store_true", help="refuse plans that mix glibc eras"
+    )
+    parser.add_argument(
+        "--before", metavar="DATE", help="only revisions on or before this ISO date"
+    )
+    parser.add_argument(
+        "--after", metavar="DATE", help="only revisions on or after this ISO date"
+    )
 
 
 def _print_plan(plan, as_json: bool) -> None:
@@ -60,8 +70,12 @@ def main(argv: list[str] | None = None) -> int:
 
     p_lock = sub.add_parser("lock", help="resolve a query and write a multiverse.lock")
     _add_common(p_lock)
-    p_lock.add_argument("-o", "--output", default="multiverse.lock",
-                        help="lock file path (default: ./multiverse.lock)")
+    p_lock.add_argument(
+        "-o",
+        "--output",
+        default="multiverse.lock",
+        help="lock file path (default: ./multiverse.lock)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -86,7 +100,9 @@ def main(argv: list[str] | None = None) -> int:
     except LockError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
-    print(f"wrote {args.output} ({len(plan.groups)} group(s), {plan.revisions} revision(s))")
+    print(
+        f"wrote {args.output} ({len(plan.groups)} group(s), {plan.revisions} revision(s))"
+    )
     return 0
 
 

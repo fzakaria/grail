@@ -17,7 +17,9 @@ class TestGrouping(unittest.TestCase):
     def test_independent_specs(self):
         q = parse_query("python3@>=3.10 ripgrep@14.*")
         self.assertEqual(len(q.groups), 2)
-        self.assertEqual([s.attr for g in q.groups for s in g.specs], ["python3", "ripgrep"])
+        self.assertEqual(
+            [s.attr for g in q.groups for s in g.specs], ["python3", "ripgrep"]
+        )
 
     def test_coexistence_group(self):
         q = parse_query("python3@>=3.10 ^openssl@1.1.*")
@@ -66,7 +68,9 @@ class TestRanges(unittest.TestCase):
 
     def test_comparators(self):
         r = self.range_of(">=3.10")
-        self.assertEqual(accepted(r, self.VERSIONS), ["3.10.4", "3.10.12", "3.11.9", "3.12.4"])
+        self.assertEqual(
+            accepted(r, self.VERSIONS), ["3.10.4", "3.10.12", "3.11.9", "3.12.4"]
+        )
         r = self.range_of("<3.10")
         self.assertEqual(accepted(r, self.VERSIONS), ["3.8.9", "3.9.18"])
         r = self.range_of("=3.11.9")
@@ -75,7 +79,9 @@ class TestRanges(unittest.TestCase):
     # conjunction with , ; both terms must hold
     def test_conjunction(self):
         r = self.range_of(">=3.9,<3.12")
-        self.assertEqual(accepted(r, self.VERSIONS), ["3.9.18", "3.10.4", "3.10.12", "3.11.9"])
+        self.assertEqual(
+            accepted(r, self.VERSIONS), ["3.9.18", "3.10.4", "3.10.12", "3.11.9"]
+        )
 
     # alternation with || ; either side may hold
     def test_alternation(self):

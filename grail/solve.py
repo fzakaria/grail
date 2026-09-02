@@ -32,7 +32,9 @@ class SolveOptions:
         default_factory=lambda: os.environ.get("GRAIL_CLINGO", "clingo")
     )
     solve_lp: Path = field(
-        default_factory=lambda: Path(os.environ.get("GRAIL_SOLVE_LP", _DEFAULT_SOLVE_LP))
+        default_factory=lambda: Path(
+            os.environ.get("GRAIL_SOLVE_LP", _DEFAULT_SOLVE_LP)
+        )
     )
 
 
@@ -132,9 +134,7 @@ def _never_overlapped(spec_facts: list[SpecFacts], index: Index) -> str | None:
             for j in range(i + 1, len(members)):
                 a, b = members[i], members[j]
                 ua, ub = _spec_union(a), _spec_union(b)
-                if any(
-                    lo1 <= hi2 and lo2 <= hi1 for lo1, hi1 in ua for lo2, hi2 in ub
-                ):
+                if any(lo1 <= hi2 and lo2 <= hi1 for lo1, hi1 in ua for lo2, hi2 in ub):
                     continue
                 # order the pair by time for the message
                 if ua[-1][1] > ub[-1][1]:
@@ -154,7 +154,10 @@ def _glibcs_of(offsets: list[int], index: Index) -> list[str]:
     for version, lo, hi in index.glibc_eras():
         if any(lo <= off <= hi for off in offsets):
             names.append(version)
-    return sorted(set(names), key=lambda v: [version for version, _, _ in index.glibc_eras()].index(v))
+    return sorted(
+        set(names),
+        key=lambda v: [version for version, _, _ in index.glibc_eras()].index(v),
+    )
 
 
 def _plan_from_atoms(
@@ -177,7 +180,9 @@ def _plan_from_atoms(
     return Plan(
         result="sat",
         revisions=len(offsets),
-        groups=[groups[g] for g in sorted(groups, key=lambda g: groups[g].revision.off)],
+        groups=[
+            groups[g] for g in sorted(groups, key=lambda g: groups[g].revision.off)
+        ],
         glibcs=_glibcs_of(offsets, index),
     )
 

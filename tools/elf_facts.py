@@ -70,7 +70,9 @@ class ElfFacts:
         }
         if not demands:
             return None
-        return max(demands, key=lambda v: [int(p) for p in v[len("GLIBC_") :].split(".")])
+        return max(
+            demands, key=lambda v: [int(p) for p in v[len("GLIBC_") :].split(".")]
+        )
 
 
 def _cstr(blob: bytes, offset: int) -> str:
