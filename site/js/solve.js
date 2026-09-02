@@ -114,9 +114,11 @@ function neverOverlapped(resolved, revs) {
         }
         const last = ua[ua.length - 1][1];
         const first = ub[0][0];
+        // line breaks at the clause boundaries; the page shows the
+        // message in a <pre>, so this reads like the CLI output
         return (
-          `${describe(a)} and ${describe(b)} never overlapped: ` +
-          `${describe(a)} was last alive ${revs[last][0]} (r${last}), ` +
+          `${describe(a)} and ${describe(b)} never overlapped:\n` +
+          `${describe(a)} was last alive ${revs[last][0]} (r${last}),\n` +
           `${describe(b)} first alive ${revs[first][0]} (r${first})`
         );
       }
@@ -164,7 +166,9 @@ export async function solve(groups, { oneGlibc = false } = {}) {
         const mixed = eras
           .filter(([, lo, hi]) => offsets.some((off) => lo <= off && off <= hi))
           .map(([version]) => version);
-        why = `satisfiable only by mixing glibc eras (${[...new Set(mixed)].join(", ")}); one-glibc forbids that`;
+        why =
+          `satisfiable only by mixing glibc eras (${[...new Set(mixed)].join(", ")});\n` +
+          `one glibc era forbids that`;
       }
     }
     return { result: "unsat", why: why ?? "no model satisfies the query" };
