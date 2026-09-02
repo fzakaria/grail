@@ -286,3 +286,12 @@ regenerate from the live index (his plotnine/graphviz preference).
 - Upstreaming: `mvs solve --ranges` embedding solve.lp via clingo-rs.
 - Dependency-closure constraints (specs on transitive deps), which is where
   grounding discipline starts to matter.
+- `--one <attr>`: the glibc era constraint generalized to any library
+  (openssl, libpython). The invariant is one store path per soname across
+  the plan's closures; facts come from narinfo References / the closures
+  data releases (which openssl does curl-at-R's closure carry), refined to
+  soname granularity by elf_facts. Only matters when mkDerivation links a
+  multi-revision plan into one build — build it when someone actually
+  wants to do that, not before. No linker metadata catches API-level
+  mixing (an SSL* from one openssl handed to another); say so wherever
+  this ships.
