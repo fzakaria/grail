@@ -120,9 +120,9 @@
                       self.send_header("Cache-Control", "no-store")
                       super().end_headers()
 
-              http.server.ThreadingHTTPServer(
-                  ("", int(sys.argv[1])), NoStore
-              ).serve_forever()
+              port = int(sys.argv[1])
+              print(f"serving on http://127.0.0.1:{port}/  (Cache-Control: no-store)", flush=True)
+              http.server.ThreadingHTTPServer(("", port), NoStore).serve_forever()
               EOF
             ''}";
           };
