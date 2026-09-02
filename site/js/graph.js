@@ -20,7 +20,7 @@ function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function box(x, y, w, h, lines, cls) {
+function box(x, y, w, h, lines, cls, href) {
   const text = lines
     .map(
       (line, i) =>
@@ -28,15 +28,22 @@ function box(x, y, w, h, lines, cls) {
            text-anchor="middle">${esc(line)}</text>`,
     )
     .join("");
-  return `<g class="${cls}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>${text}</g>`;
+  const g = `<g class="${cls}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>${text}</g>`;
+  // a node that names something the multiverse can show links to it
+  return href ? `<a href="${href}" target="_blank" rel="noopener">${g}</a>` : g;
 }
+
+const MV = "https://nixmultiverse.com/";
+const pkgURL = (attr, version) =>
+  `${MV}?pkg=${encodeURIComponent(attr)}&ver=${encodeURIComponent(version)}`;
+const revURL = (rev12) => `${MV}?view=revisions&rev=${rev12}`;
 
 export function planSVG(plan) {
   // measure each revision cluster: its pins side by side, itself below
   const clusters = plan.groups.map((group) => {
     const pins = group.pins.map((p) => {
       const label = `${p.attr} ${p.version}`;
-      return { label, w: nodeWidth([label]) };
+      return { label, w: nodeWidth([label]), href: pkgURL(p.attr, p.version) };
     });
     const pinsW = pins.reduce((sum, p) => sum + p.w, 0) + GAP_X * (pins.length - 1);
     const revLines = [`r${group.off} · ${group.date}`];
@@ -70,11 +77,13 @@ export function planSVG(plan) {
     const revY = pinsH + ROW_GAP;
 
     for (const pin of c.pins) {
-      parts.push(box(px, 2, pin.w, NODE_H, [pin.label], "pin"));
+      parts.push(box(px, 2, pin.w, NODE_H, [pin.label], "pin", pin.href));
       parts.push(edge(px + pin.w / 2, 2 + NODE_H, revX + c.revW / 2, revY));
       px += pin.w + GAP_X;
     }
-    parts.push(box(revX, revY, c.revW, revH, c.revLines, "rev"));
+    parts.push(
+      box(revX, revY, c.revW, revH, c.revLines, "rev", revURL(c.group.rev)),
+    );
     if (c.group.glibc) {
       if (!eraSources.has(c.group.glibc)) eraSources.set(c.group.glibc, []);
       eraSources.get(c.group.glibc).push(revX + c.revW / 2);
@@ -92,8 +101,9 @@ export function planSVG(plan) {
     let ex = sources.reduce((sum, s) => sum + s, 0) / sources.length - w / 2;
     ex = Math.max(ex, lastRight + GAP_X, 4);
     lastRight = ex + w;
-    for (const s of sources) parts.push(edge(s, pinsH + ROW_GAP + revH, ex + w / 2, eraY));
-    parts.push(box(ex, eraY, w, NODE_H, [label], "lib"));
+    for (const s of sources)
+      parts.push(edge(s, pinsH + ROW_GAP + revH, ex + w / 2, eraY));
+    parts.push(box(ex, eraY, w, NODE_H, [label], "lib", pkgURL("glibc", glibc)));
   }
 
   return `<svg class="plan" viewBox="0 0 ${totalW} ${height}"

@@ -114,13 +114,29 @@ function moveSelection(delta) {
 
 // --- solving and rendering ------------------------------------------------
 
-function planText(plan) {
+// the CLI-shaped plan, with every pin and revision linking into the
+// multiverse index (subdued underlines; the router matches rev by prefix)
+const MV = "https://nixmultiverse.com/";
+const pkgURL = (attr, version) =>
+  `${MV}?pkg=${encodeURIComponent(attr)}&ver=${encodeURIComponent(version)}`;
+const revURL = (rev12) => `${MV}?view=revisions&rev=${rev12}`;
+
+function planHTML(plan) {
+  const a = (href, text) =>
+    `<a href="${href}" target="_blank" rel="noopener">${esc(text)}</a>`;
   const lines = [`${plan.revisions} revision${plan.revisions === 1 ? "" : "s"}`];
   for (const group of plan.groups) {
-    lines.push(`  ${group.label}  (${group.date}, r${group.off})`);
-    for (const pin of group.pins) lines.push(`    ${pin.attr} ${pin.version}`);
+    lines.push(
+      `  ${a(revURL(group.rev), group.label)}  (${group.date}, r${group.off})`,
+    );
+    for (const pin of group.pins) {
+      lines.push(`    ${a(pkgURL(pin.attr, pin.version), `${pin.attr} ${pin.version}`)}`);
+    }
   }
-  if (plan.glibcs.length) lines.push(`  glibc: ${plan.glibcs.join(", ")}`);
+  if (plan.glibcs.length) {
+    const eras = plan.glibcs.map((v) => a(pkgURL("glibc", v), v));
+    lines.push(`  glibc: ${eras.join(", ")}`);
+  }
   return lines.join("\n");
 }
 
@@ -177,7 +193,7 @@ async function runSolve() {
   }
 
   results.innerHTML = `
-    <pre class="plan-text">${esc(planText(plan))}</pre>
+    <pre class="plan-text">${planHTML(plan)}</pre>
     <div class="plan-graph">${planSVG(plan)}</div>
     <details>
       <summary>multiverse.lock — <code>grail lock '${esc(query)}'</code></summary>

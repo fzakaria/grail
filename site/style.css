@@ -325,3 +325,24 @@ svg.plan .lib rect {
   stroke: var(--line);
   stroke-dasharray: 4 3;
 }
+
+/* ---------- links into the multiverse ----------
+   Pins, revisions and eras in the plan link to their nixmultiverse.com
+   pages. Subdued on purpose: they keep the text color and wear a dotted
+   muted underline that turns solid on hover. */
+.plan-text a {
+  color: inherit;
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 3px;
+}
+.plan-text a:hover {
+  text-decoration: underline solid var(--accent);
+}
+/* graph nodes are already button-shaped, so no underline there; hover
+   answers with the accent stroke */
+svg.plan a {
+  cursor: pointer;
+}
+svg.plan a:hover rect {
+  stroke: var(--accent);
+}
