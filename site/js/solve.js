@@ -186,11 +186,13 @@ export async function solve(groups, { oneGlibc = false } = {}) {
     const off = where.get(sf.gid);
     if (!groupsOut.has(sf.gid)) {
       const [date, rev12] = revs[off];
+      const era = eras.find(([, lo, hi]) => lo <= off && off <= hi);
       groupsOut.set(sf.gid, {
         off,
         date,
         rev: rev12,
         label: `${date}-${rev12}`,
+        glibc: era ? era[0] : null,
         pins: [],
       });
     }

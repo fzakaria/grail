@@ -47,10 +47,21 @@ export function planSVG(plan) {
   const totalW =
     clusters.reduce((sum, c) => sum + c.w, 0) + GROUP_GAP * (clusters.length - 1) + 8;
   const pinsH = Math.max(...clusters.map((c) => (c.pins.length ? NODE_H : 0)));
-  const height = pinsH + ROW_GAP + NODE_H + 8;
+  const revH = NODE_H;
+  // a third row when eras are known: one node per DISTINCT glibc, so a
+  // one-era plan draws every revision converging on a single libc node
+  const hasEras = plan.groups.some((g) => g.glibc);
+  const height = pinsH + ROW_GAP + revH + (hasEras ? ROW_GAP + NODE_H : 0) + 8;
+
+  // a curved edge ending in an arrowhead at (x2, y2)
+  const edge = (x1, y1, x2, y2) =>
+    `<path class="edge" d="M ${x1} ${y1} C ${x1} ${y1 + 24},
+       ${x2} ${y2 - 24}, ${x2} ${y2 - 5}" />
+     <path class="edge arrow" d="M ${x2 - 4} ${y2 - 9} L ${x2} ${y2 - 1} L ${x2 + 4} ${y2 - 9} Z"/>`;
 
   let x = 4;
   const parts = [];
+  const eraSources = new Map(); // glibc version -> [revision center x]
   for (const c of clusters) {
     const pinsW =
       c.pins.reduce((sum, p) => sum + p.w, 0) + GAP_X * (c.pins.length - 1);
@@ -60,18 +71,29 @@ export function planSVG(plan) {
 
     for (const pin of c.pins) {
       parts.push(box(px, 2, pin.w, NODE_H, [pin.label], "pin"));
-      // arrow from pin bottom-center to revision top
-      const x1 = px + pin.w / 2;
-      const x2 = revX + c.revW / 2;
-      parts.push(
-        `<path class="edge" d="M ${x1} ${2 + NODE_H} C ${x1} ${2 + NODE_H + 24},
-           ${x2} ${revY - 24}, ${x2} ${revY - 5}" />
-         <path class="edge arrow" d="M ${x2 - 4} ${revY - 9} L ${x2} ${revY - 1} L ${x2 + 4} ${revY - 9} Z"/>`,
-      );
+      parts.push(edge(px + pin.w / 2, 2 + NODE_H, revX + c.revW / 2, revY));
       px += pin.w + GAP_X;
     }
-    parts.push(box(revX, revY, c.revW, NODE_H, c.revLines, "rev"));
+    parts.push(box(revX, revY, c.revW, revH, c.revLines, "rev"));
+    if (c.group.glibc) {
+      if (!eraSources.has(c.group.glibc)) eraSources.set(c.group.glibc, []);
+      eraSources.get(c.group.glibc).push(revX + c.revW / 2);
+    }
     x += c.w + GROUP_GAP;
+  }
+
+  // one node per distinct era, centered under the revisions it serves;
+  // a one-era plan draws every revision converging on a single libc node
+  const eraY = pinsH + ROW_GAP + revH + ROW_GAP;
+  let lastRight = -Infinity;
+  for (const [glibc, sources] of eraSources) {
+    const label = `glibc ${glibc}`;
+    const w = nodeWidth([label]);
+    let ex = sources.reduce((sum, s) => sum + s, 0) / sources.length - w / 2;
+    ex = Math.max(ex, lastRight + GAP_X, 4);
+    lastRight = ex + w;
+    for (const s of sources) parts.push(edge(s, pinsH + ROW_GAP + revH, ex + w / 2, eraY));
+    parts.push(box(ex, eraY, w, NODE_H, [label], "lib"));
   }
 
   return `<svg class="plan" viewBox="0 0 ${totalW} ${height}"

@@ -320,3 +320,8 @@ label.opt input {
   accent-color: var(--accent);
   margin-right: 0.3rem;
 }
+svg.plan .lib rect {
+  fill: var(--code-bg);
+  stroke: var(--line);
+  stroke-dasharray: 4 3;
+}
