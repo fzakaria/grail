@@ -3,6 +3,11 @@
 Version ranges for nixpkgs, solved by [clingo] over the
 [nixpkgs-multiverse] history index.
 
+**Try it at <https://fzakaria.github.io/grail/>** — the whole thing runs in
+your browser: clingo compiled to WebAssembly solves `asp/solve.lp`
+unmodified against static data shards, with query autocomplete, a drawn
+plan graph, and shareable `?q=` links. No server anywhere.
+
 nixpkgs has one version per attribute, which is why it never needed a
 dependency solver. The multiverse indexed every version that ever shipped —
 307,000+ package-versions across 1,541 revisions of nixos-unstable — and

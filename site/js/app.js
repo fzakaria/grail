@@ -228,6 +228,7 @@ for (const chip of document.querySelectorAll("[data-example]")) {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
     input.value = chip.dataset.example;
+    oneGlibc.checked = chip.dataset.glibc === "1";
     renderHighlight();
     runSolve();
   });

@@ -102,12 +102,28 @@
           pkgs = nixpkgs.legacyPackages.${system};
         in
         {
-          # serve the built site locally, exactly the tree pages deploys
+          # serve the built site locally, exactly the tree pages deploys.
+          # `nix run .#serve -- <port>` overrides the default 8137. The
+          # handler sends no-store: store paths carry a 1970 mtime, so a
+          # plain http.server answers If-Modified-Since with 304 and the
+          # browser keeps a previous build's JS forever.
           serve = {
             type = "app";
             program = "${pkgs.writeShellScript "serve-site" ''
-              exec ${pkgs.python3}/bin/python3 -m http.server 8137 \
-                --directory ${self.packages.${system}.site}
+              exec ${pkgs.python3}/bin/python3 - "''${1:-8137}" <<'EOF'
+              import http.server, os, sys
+
+              os.chdir("${self.packages.${system}.site}")
+
+              class NoStore(http.server.SimpleHTTPRequestHandler):
+                  def end_headers(self):
+                      self.send_header("Cache-Control", "no-store")
+                      super().end_headers()
+
+              http.server.ThreadingHTTPServer(
+                  ("", int(sys.argv[1])), NoStore
+              ).serve_forever()
+              EOF
             ''}";
           };
         }

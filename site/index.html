@@ -81,6 +81,12 @@
       <span class="ex-size">big</span>
       <a href="?q=python3%40%3E%3D3.10+%5Enodejs%40%3E%3D20+%5Ego%40%3E%3D1.21+%5Eruby%40%3E%3D3.2+%5Erustc%40%3E%3D1.70+%5Egcc%40%3E%3D13"
          data-example="python3@>=3.10 ^nodejs@>=20 ^go@>=1.21 ^ruby@>=3.2 ^rustc@>=1.70 ^gcc@>=13">6-way coexistence</a>
+      <span class="ex-size">glibc</span>
+      <a href="?q=python3%403.10.*+postgresql%4013.*"
+         data-example="python3@3.10.* postgresql@13.*">two eras mixed</a>
+      <a href="?q=python3%403.10.*+postgresql%4013.*&glibc=1"
+         data-example="python3@3.10.* postgresql@13.*" data-glibc="1"
+         title="same query; the solver gives up python 3.10.12 to keep one libc">forced to one era</a>
     </p>
 
     <div id="results"></div>
