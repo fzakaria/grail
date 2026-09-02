@@ -1,0 +1,40 @@
+// The grail pipeline, for the blog post.
+// dot -Tsvg pipeline.dot -o grail-pipeline.svg
+digraph grail {
+  rankdir = LR;
+  bgcolor = "white";
+  node [
+    shape = box,
+    style = "rounded,filled",
+    fillcolor = "#fcfcfb",
+    color = "#b5b1a9",
+    fontname = "Helvetica",
+    fontsize = 11,
+    fontcolor = "#0b0b0b",
+    margin = "0.18,0.09"
+  ];
+  edge [color = "#7d7970", arrowsize = 0.7, fontname = "Helvetica", fontsize = 9, fontcolor = "#52514e"];
+
+  query   [label = "python3@>=3.10 ^openssl@1.1.*", fontname = "Courier", fontsize = 10];
+  history [label = "history.json\n1,541 revisions", fontname = "Courier", fontsize = 10];
+  facts   [label = "facts\nallowed / run / glibcera"];
+  rules   [label = "solve.lp\n~40 lines", fontname = "Courier", fontsize = 10];
+  clingo  [label = "clingo", fillcolor = "#2a78d6", fontcolor = "white", color = "#2a78d6"];
+  plan    [label = "plan\nr852 · 2022-09-12", fillcolor = "#fdeee6", color = "#d8622b"];
+  lock    [label = "multiverse.lock", fontname = "Courier", fontsize = 10];
+  consume [label = "readLock · modules\nmvs lock status"];
+  mkdrv   [label = "grail.lib.mkDerivation"];
+  mvat    [label = "mv.at \"2022-09-12-5f326e2a403e\"", fontname = "Courier", fontsize = 10];
+  cache   [label = "cache.nixos.org"];
+
+  query -> facts [label = "specs.py"];
+  history -> facts;
+  facts -> clingo;
+  rules -> clingo;
+  clingo -> plan [label = "optimum"];
+  plan -> lock;
+  lock -> consume;
+  plan -> mkdrv [label = "IFD"];
+  mkdrv -> mvat;
+  mvat -> cache [label = "substitute"];
+}
