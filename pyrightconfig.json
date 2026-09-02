@@ -1,0 +1,4 @@
+{
+  "extraPaths": [".", "tools"],
+  "include": ["grail", "tests", "tools"]
+}

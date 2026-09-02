@@ -43,6 +43,23 @@
             '';
           };
           default = grail;
+
+          # the party trick: a derivation whose inputs the solver chose.
+          # python >= 3.10 and openssl 1.1 last coexisted on 2022-09-12
+          # (r852); stdenv, glibc and both inputs come from that world.
+          demo = self.lib.${system}.mkDerivation {
+            pname = "grail-demo";
+            version = "0.1";
+            specs = "python3@>=3.10 ^openssl@1.1.*";
+            dontUnpack = true;
+            installPhase = ''
+              {
+                python3 --version
+                openssl version
+                echo "glibc $(ldd --version | head -1)"
+              } | tee $out
+            '';
+          };
         }
       );
 

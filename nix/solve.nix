@@ -17,21 +17,20 @@
 let
   inherit (pkgs) lib;
 
-  args =
-    [
-      "solve"
-      "--json"
-    ]
-    ++ lib.optional oneGlibc "--one-glibc"
-    ++ lib.optionals (before != null) [
-      "--before"
-      before
-    ]
-    ++ lib.optionals (after != null) [
-      "--after"
-      after
-    ]
-    ++ [ specs ];
+  args = [
+    "solve"
+    "--json"
+  ]
+  ++ lib.optional oneGlibc "--one-glibc"
+  ++ lib.optionals (before != null) [
+    "--before"
+    before
+  ]
+  ++ lib.optionals (after != null) [
+    "--after"
+    after
+  ]
+  ++ [ specs ];
 
   drv =
     pkgs.runCommand "${name}.json"
