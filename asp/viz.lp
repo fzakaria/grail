@@ -32,7 +32,7 @@ attr(node, pin(P), fontcolor, "#0b0b0b") :- pinnode(P, _, _).
 node(rev(G)) :- revnode(G, _).
 attr(node, rev(G), label, L) :- revnode(G, L).
 attr(node, rev(G), fillcolor, "#fdeee6") :- revnode(G, _).
-attr(node, rev(G), color, "#d8622b") :- revnode(G, _).
+attr(node, rev(G), color, "#cf5d28") :- revnode(G, _).
 attr(node, rev(G), fontcolor, "#0b0b0b") :- revnode(G, _).
 
 % every pin hangs off the revision that serves it

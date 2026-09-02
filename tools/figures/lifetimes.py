@@ -3,10 +3,10 @@
 python3 minors and openssl series as life-bars over the full index, with
 the coexistence window for `python3@>=3.10 ^openssl@1.1.*` shaded.
 
-No plotting library. The SVG is meant to be INLINED into the page (a
-Jekyll include), so text uses the blog's JetBrains Mono and every neutral
-color is a var(--token) that follows the site's light/dark palette. The
-two series colors are fixed per mode and validated against both papers.
+No plotting library. The SVG ships as an ordinary /assets image, which
+the blog serves on its light --image-mat in both color schemes ("diagrams
+are deliberately not themed"), so the palette is literal light line art —
+validated against the mat color — and never queries prefers-color-scheme.
 
 Usage: lifetimes.py --index <multiverse checkout> --out <svg path>
 """
@@ -120,24 +120,20 @@ def main():
     put = svg.append
     put(
         f'<svg class="grail-fig" viewBox="0 0 760 {height}" '
+        f'width="760" height="{height}" '
         f'xmlns="http://www.w3.org/2000/svg" role="img" '
         f'aria-label="version lifetimes of python3 and openssl in '
         f'nixos-unstable with the coexistence window {wl} to {wr} shaded">'
     )
     put(f"""<style>
   .grail-fig {{ font-family: {MONO}; }}
-  .grail-fig text {{ font-size: 10px; fill: var(--ink-muted, #565046); }}
-  .grail-fig .head {{ font-size: 11px; font-weight: 600; fill: var(--ink, #1a1815); }}
-  .grail-fig .grid {{ stroke: var(--rule, #ddd6c9); stroke-width: 1; }}
-  .grail-fig .ctx {{ fill: var(--ink-faint, #6f685b); opacity: .55; }}
+  .grail-fig text {{ font-size: 10px; fill: #565046; }}
+  .grail-fig .head {{ font-size: 11px; font-weight: 600; fill: #1a1815; }}
+  .grail-fig .grid {{ stroke: #dcd5c5; stroke-width: 1; }}
+  .grail-fig .ctx {{ fill: #6f685b; opacity: .55; }}
   .grail-fig .hit {{ fill: #2a78d6; }}
-  .grail-fig .win {{ fill: #d8622b; opacity: .16; }}
-  .grail-fig .wtext {{ fill: #d8622b; font-size: 10px; }}
-  @media (prefers-color-scheme: dark) {{
-    .grail-fig .hit {{ fill: #4a90e2; }}
-    .grail-fig .win {{ fill: #cf7433; opacity: .2; }}
-    .grail-fig .wtext {{ fill: #cf7433; }}
-  }}
+  .grail-fig .win {{ fill: #cf5d28; opacity: .16; }}
+  .grail-fig .wtext {{ fill: #cf5d28; font-size: 10px; }}
 </style>""")
 
     # year grid, every two years

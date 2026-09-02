@@ -22,7 +22,7 @@ digraph grail {
   facts   [label = "facts\nallowed / run / glibcera"];
   rules   [label = "solve.lp\n~40 lines", fontsize = 10];
   clingo  [label = "clingo", fillcolor = "#2a78d6", fontcolor = "white", color = "#2a78d6"];
-  plan    [label = "plan\nr852 · 2022-09-12", fillcolor = "#fdeee6", color = "#d8622b"];
+  plan    [label = "plan\nr852 · 2022-09-12", fillcolor = "#fdeee6", color = "#cf5d28"];
   lock    [label = "multiverse.lock", fontsize = 10];
   consume [label = "readLock · modules\nmvs lock status"];
   mkdrv   [label = "grail.lib.mkDerivation"];
