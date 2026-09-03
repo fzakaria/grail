@@ -153,15 +153,16 @@ function libVersions(offsets, eras) {
   return names;
 }
 
-export async function solve(groups, { oneGlibc = false, one = [] } = {}) {
+export async function solve(groups, { one = [] } = {}) {
   const revs = await revisions();
   const tip = revs.length - 1;
 
-  // --one attrs become solver facts; glibc among them only when asked,
-  // and even then softly — its backward compatibility means mixing is
-  // reported, never refused. Hard no-mixing clauses are for the rest.
-  const constrained = [...new Set([...one, ...(oneGlibc ? ["glibc"] : [])])];
-  const hard = constrained.filter((lib) => lib !== "glibc");
+  // --one attrs become solver facts, and every one of them gets the
+  // hard no-mixing clause — glibc included when asked. An unconstrained
+  // solve leaves glibc alone and just reports the newest spanned era
+  // (symbol versioning makes that the link-world answer).
+  const constrained = [...new Set(one)];
+  const hard = constrained;
   const libs = [];
   for (const lib of constrained) {
     const eras = await libEras(lib, tip);

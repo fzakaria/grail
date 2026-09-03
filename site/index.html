@@ -63,13 +63,12 @@
     </div>
 
     <div class="opts">
-      <label class="opt muted" title="glibc is directional: newer satisfies older, so mixing eras reports the link-world minimum and never fails; this only nudges the solver toward fewer eras">
-        <input type="checkbox" id="one-glibc" />
-        prefer one glibc era
-      </label>
-      <label class="opt muted" title="refuse plans whose revisions mix versions of these attrs; typing glibc here is the same soft preference as the checkbox — glibc never hard-fails">
+      <label class="opt muted" title="refuse plans whose revisions mix versions of these attrs. glibc included: one glibc era or unsat — left out, spanned eras are only reported and the newest serves every input (glibc is directional: newer satisfies older)">
         keep one version of:
-        <input type="text" id="one-attrs" placeholder="zstd, openssl" spellcheck="false" autocomplete="off" />
+        <span class="one-box">
+          <input type="text" id="one-attrs" placeholder="glibc, zstd" spellcheck="false" autocomplete="off" />
+          <ul id="one-suggest" hidden></ul>
+        </span>
       </label>
     </div>
 
@@ -90,9 +89,9 @@
       <span class="ex-size">coherence</span>
       <a href="?q=python3%403.10.*+postgresql%4013.*"
          data-example="python3@3.10.* postgresql@13.*">two eras mixed</a>
-      <a href="?q=python3%403.10.*+postgresql%4013.*&one=zstd,openssl"
-         data-example="python3@3.10.* postgresql@13.*" data-one="zstd, openssl"
-         title="one zstd, one openssl: python retreats to 3.10.4 to keep every contract-less library coherent; glibc follows for free">one everything</a>
+      <a href="?q=python3%403.10.*+postgresql%4013.*&one=glibc,zstd,openssl"
+         data-example="python3@3.10.* postgresql@13.*" data-one="glibc, zstd, openssl"
+         title="one glibc, one zstd, one openssl: python retreats to 3.10.4 to keep every library coherent">one everything</a>
       <a href="?q=ffmpeg%405.*+nodejs%4016.*&one=zstd,openssl"
          data-example="ffmpeg@5.* nodejs@16.*" data-one="zstd, openssl"
          title="no plan can keep one zstd and one openssl here; the solver names what would mix">impossibly incoherent</a>

@@ -182,7 +182,8 @@ button#solve {
 }
 
 /* ---------- autocomplete ---------- */
-#suggest {
+#suggest,
+#one-suggest {
   position: absolute;
   z-index: 10;
   top: calc(100% + 2px);
@@ -200,13 +201,16 @@ button#solve {
   font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
   font-size: 14px;
 }
-#suggest li {
+#suggest li,
+#one-suggest li {
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   cursor: pointer;
 }
 #suggest li:hover,
-#suggest li.selected {
+#suggest li.selected,
+#one-suggest li:hover,
+#one-suggest li.selected {
   background: var(--code-bg);
 }
 
@@ -309,7 +313,12 @@ footer {
   padding: 0;
 }
 
-/* ---------- the one-glibc toggle ---------- */
+/* ---------- the --one box ---------- */
+/* the wrapper anchors the box's own autocomplete dropdown */
+.one-box {
+  position: relative;
+  display: inline-block;
+}
 label.opt {
   display: block;
   margin: 0.4rem 0 0;

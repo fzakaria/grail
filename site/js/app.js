@@ -8,11 +8,13 @@ import { ParseError, parseQuery, tokenize } from "./specs.js";
 import { solve, warmup } from "./solve.js";
 
 const input = document.getElementById("query");
-const oneGlibc = document.getElementById("one-glibc");
 const oneAttrs = document.getElementById("one-attrs");
 
-// the --one attrs: comma or space separated in the small input
-const parseOne = () => oneAttrs.value.split(/[\s,]+/).filter(Boolean);
+// the --one attrs: comma or space separated in the small input; glibc
+// goes in the same box as everything else
+const oneList = () => [
+  ...new Set(oneAttrs.value.split(/[\s,]+/).filter(Boolean)),
+];
 const highlight = document.getElementById("highlight");
 const dropdown = document.getElementById("suggest");
 const results = document.getElementById("results");
@@ -116,6 +118,69 @@ function moveSelection(delta) {
   );
 }
 
+// --- autocomplete for the --one box ---------------------------------------
+// completes the attr fragment the caret sits in (after the last comma or
+// space), from the same attr pool as the query box
+
+const oneSuggest = document.getElementById("one-suggest");
+let oneSuggestions = [];
+let oneSelected = -1;
+
+function oneFragment() {
+  const upto = oneAttrs.value.slice(0, oneAttrs.selectionStart);
+  const prefix = upto.match(/[^,\s]*$/)[0];
+  return { start: upto.length - prefix.length, prefix };
+}
+
+async function refreshOneSuggestions() {
+  // unlike the query box, one character is enough here: the box only
+  // ever holds attr names, so even a wide first-letter match is useful
+  const { start, prefix } = oneFragment();
+  if (!prefix.length) {
+    hideOneSuggestions();
+    return;
+  }
+
+  const attrs = await allAttrs();
+  const pool = attrs.filter((a) => a.startsWith(prefix));
+  oneSuggestions = pool.slice(0, 12).map((text) => ({ text, start }));
+  oneSelected = -1;
+
+  if (!oneSuggestions.length) {
+    hideOneSuggestions();
+    return;
+  }
+  oneSuggest.innerHTML = oneSuggestions
+    .map((s, i) => `<li data-i="${i}">${esc(s.text)}</li>`)
+    .join("");
+  oneSuggest.hidden = false;
+}
+
+function hideOneSuggestions() {
+  oneSuggestions = [];
+  oneSelected = -1;
+  oneSuggest.hidden = true;
+}
+
+function acceptOne(i) {
+  const { text, start } = oneSuggestions[i];
+  const caret = oneAttrs.selectionStart;
+  oneAttrs.value =
+    oneAttrs.value.slice(0, start) + text + oneAttrs.value.slice(caret);
+  const pos = start + text.length;
+  oneAttrs.setSelectionRange(pos, pos);
+  oneAttrs.focus();
+  hideOneSuggestions();
+}
+
+function moveOneSelection(delta) {
+  if (!oneSuggestions.length) return;
+  oneSelected = (oneSelected + delta + oneSuggestions.length) % oneSuggestions.length;
+  [...oneSuggest.children].forEach((li, i) =>
+    li.classList.toggle("selected", i === oneSelected),
+  );
+}
+
 // --- solving and rendering ------------------------------------------------
 
 // the CLI-shaped plan, with every pin and revision linking into the
@@ -177,9 +242,8 @@ async function runSolve() {
 
   const url = new URL(location);
   url.searchParams.set("q", query);
-  if (oneGlibc.checked) url.searchParams.set("glibc", "1");
-  else url.searchParams.delete("glibc");
-  if (parseOne().length) url.searchParams.set("one", parseOne().join(","));
+  url.searchParams.delete("glibc"); // legacy spelling of one=glibc
+  if (oneList().length) url.searchParams.set("one", oneList().join(","));
   else url.searchParams.delete("one");
   history.replaceState(null, "", url);
 
@@ -196,7 +260,7 @@ async function runSolve() {
   const started = performance.now();
   let plan;
   try {
-    plan = await solve(groups, { oneGlibc: oneGlibc.checked, one: parseOne() });
+    plan = await solve(groups, { one: oneList() });
   } catch (e) {
     results.innerHTML = `<p class="error">${esc(String(e.message ?? e))}</p>`;
     return;
@@ -214,7 +278,11 @@ async function runSolve() {
     <pre class="plan-text">${planHTML(plan)}</pre>
     <div class="plan-graph">${planSVG(plan)}</div>
     <details>
-      <summary>multiverse.lock — <code>grail lock '${esc(query)}'</code></summary>
+      <summary>multiverse.lock — <code>grail lock '${esc(query)}'${esc(
+        oneList()
+          .map((lib) => ` --one ${lib}`)
+          .join(""),
+      )}</code></summary>
       <pre class="plan-text">${esc(lockJSON(plan))}</pre>
     </details>
     <p class="muted">solved in ${ms} ms by clingo-wasm running
@@ -262,24 +330,52 @@ for (const chip of document.querySelectorAll("[data-example]")) {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
     input.value = chip.dataset.example;
-    oneGlibc.checked = chip.dataset.glibc === "1";
-    oneAttrs.value = chip.dataset.one ?? "";
+    oneAttrs.value = (chip.dataset.one ?? "")
+      .split(/[\s,]+/)
+      .filter(Boolean)
+      .join(", ");
     renderHighlight();
     runSolve();
   });
 }
 
-oneGlibc.addEventListener("change", () => {
-  if (input.value.trim()) runSolve();
+oneAttrs.addEventListener("input", refreshOneSuggestions);
+oneAttrs.addEventListener("keydown", (e) => {
+  if (!oneSuggest.hidden) {
+    if (e.key === "ArrowDown") return e.preventDefault(), moveOneSelection(1);
+    if (e.key === "ArrowUp") return e.preventDefault(), moveOneSelection(-1);
+    if ((e.key === "Tab" || e.key === "Enter") && oneSuggestions.length) {
+      e.preventDefault();
+      return acceptOne(oneSelected === -1 ? 0 : oneSelected);
+    }
+    if (e.key === "Escape") return hideOneSuggestions();
+  }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    hideOneSuggestions();
+    if (input.value.trim()) runSolve();
+  }
+});
+oneAttrs.addEventListener("blur", () => setTimeout(hideOneSuggestions, 150));
+oneSuggest.addEventListener("mousedown", (e) => {
+  const li = e.target.closest("li[data-i]");
+  if (li) {
+    e.preventDefault();
+    acceptOne(Number(li.dataset.i));
+  }
 });
 oneAttrs.addEventListener("change", () => {
   if (input.value.trim()) runSolve();
 });
 
-// deep links: ?q=...&glibc=1&one=zstd,openssl solves on load
+// deep links: ?q=...&one=glibc,zstd solves on load; ?glibc=1 is the
+// legacy spelling of glibc in the one= list
 const params = new URL(location).searchParams;
-oneGlibc.checked = params.get("glibc") === "1";
-oneAttrs.value = (params.get("one") ?? "").split(",").filter(Boolean).join(", ");
+const oneParam = (params.get("one") ?? "").split(",").filter(Boolean);
+if (params.get("glibc") === "1" && !oneParam.includes("glibc")) {
+  oneParam.unshift("glibc");
+}
+oneAttrs.value = oneParam.join(", ");
 const initial = params.get("q");
 if (initial) {
   input.value = initial;
