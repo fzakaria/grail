@@ -32,8 +32,9 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--one-glibc",
         action="store_true",
-        help="prefer one glibc era; glibc is directional, so mixing is "
-        "reported (link world minimum), never refused",
+        help="shorthand for --one glibc: refuse plans whose revisions "
+        "span glibc eras. Without it, spanned eras are reported and the "
+        "newest serves every input (symbol versioning is directional)",
     )
     parser.add_argument(
         "--one",
@@ -41,8 +42,7 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
         action="append",
         default=[],
         help="refuse plans whose revisions mix versions of this attr "
-        "(repeatable). glibc is special: its backward compatibility makes "
-        "--one glibc a soft preference plus a report, never an error",
+        "(repeatable)",
     )
     parser.add_argument(
         "--before", metavar="DATE", help="only revisions on or before this ISO date"

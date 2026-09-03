@@ -96,9 +96,10 @@ newest versions, then fewest mixed library eras, then freshest builds.
 
 `--one <attr>` demands every chosen revision ship the same version of an
 attr — the guard against loading two versions of one library in one
-process. glibc is deliberately NOT constrained this way: its symbol
-versioning makes mixing directional, so every plan just reports the
-link-world minimum, and `--one-glibc` merely prefers fewer eras.
+process. glibc included: `--one glibc` (shorthand: `--one-glibc`) means
+one glibc era or unsat. By default glibc is not constrained at all — its
+symbol versioning makes mixing directional, so an unconstrained plan just
+reports the link-world minimum.
 
 ```console
 $ grail solve 'python3@3.10.* postgresql@13.*'

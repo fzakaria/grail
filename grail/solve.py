@@ -222,15 +222,15 @@ def solve(query: Query, index: Index, opts: SolveOptions | None = None) -> Plan:
             return Plan(result="unsat", why=f"no revision on or before {opts.before}")
         hi_bound = last
 
-    # only --one attrs reach the solver as libera facts. glibc is special
-    # among them: its backward-compatibility contract means mixing is
-    # never an error, so --one glibc softly minimizes eras (priority 2)
-    # and the plan reports the link-world minimum, while every other
-    # --one attr gets the hard no-mixing clause a contract-less library
-    # actually needs.
+    # only --one attrs reach the solver as libera facts, and every one of
+    # them gets the hard no-mixing clause — glibc included. Its backward
+    # compatibility means an UNCONSTRAINED solve needs no glibc clause
+    # (the plan just reports the newest spanned era as the link-world
+    # answer), but asking for one glibc means one glibc: one era, one
+    # store version, or unsat. --one-glibc is shorthand for --one glibc.
     constrained = list(dict.fromkeys(opts.one + (["glibc"] if opts.one_glibc else [])))
     libs = constrained
-    hard = [lib for lib in constrained if lib != "glibc"]
+    hard = constrained
     missing = [lib for lib in libs if not index.has_attr(lib)]
     if missing:
         return Plan(

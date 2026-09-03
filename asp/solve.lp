@@ -7,9 +7,9 @@
 %                            compareVersions order (bigger = newer)
 %   run(S, V, Lo, Hi).       one lifetime run of V, clamped to any date bounds
 %   libera(L, K, Lo, Hi).    version-era K of library L reigns over Lo..Hi;
-%                            emitted only for --one attrs — glibc included
-%                            only when asked, since its backward
-%                            compatibility makes mixing need no constraint
+%                            emitted only for --one attrs, each of which
+%                            also appends the hard no-mixing clause
+%                            (facts.py one_rule) after these rules
 %
 % A model picks one version per spec and one revision per group such that
 % every member's picked version was alive at the group's revision.
@@ -30,7 +30,10 @@ usedlib(L, K) :- used(R), libera(L, K, Lo, Hi), Lo <= R, R <= Hi.
 
 % the policy, lexicographic from the top:
 %   fewest distinct revisions, then newest versions, then fewest mixed
-%   eras of the --one attrs, then freshest builds
+%   eras of the --one attrs, then freshest builds. With the hard clauses
+%   in force each --one attr sits in one era anyway; the era level only
+%   bites in the relaxed re-solve that explains an UNSAT (solve.py drops
+%   the hard clauses and asks for the least-mixed plan to name).
 #minimize { 1@4, R : used(R) }.
 #maximize { K@3, S : pick(S, V), allowed(S, V, K) }.
 #minimize { 1@2, L, K : usedlib(L, K) }.

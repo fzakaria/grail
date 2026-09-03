@@ -29,9 +29,9 @@ libc). grail's version points backward through history instead.
 ## Tier 0 — metadata only, implemented
 
 `glibc` is an indexed attr, so its lifetime runs already say which glibc
-reigned at every revision. Those become `glibcera` facts, the solver
-minimizes distinct eras, and `--one-glibc` makes mixing a hard error.
-No ELF bytes involved.
+reigned at every revision. Those become `libera` facts under
+`--one glibc` (shorthand: `--one-glibc`), and mixing eras is then a hard
+error like any other `--one` attr. No ELF bytes involved.
 
 The other zero-cost fact source is narinfo `References`: a store path's
 closure lists the exact glibc it was linked against, and the multiverse
@@ -80,15 +80,28 @@ demands that every chosen revision ship the same version of zstd and of
 openssl. The data is the same lifetime index glibc uses — which version of
 the attr each revision shipped — so no closure analysis is needed.
 
-glibc itself is deliberately exempt from the hard clause. Its symbol
-versioning makes compatibility directional — a newer glibc satisfies every
-older demand, and an input never demands more than the glibc of the
-revision it was built in — so a mixed plan is link-safe provided the
-shared process runs the newest era. Every plan therefore reports that
-minimum (`glibc: 2.37 serves every input (eras spanned: 2.34, 2.37)`), and
-`--one-glibc` / `--one glibc` only _prefers_ fewer eras (a soft
-objective); it can never make a plan unsatisfiable. The hard clause is
-reserved for libraries with no such contract.
+glibc gets the same hard clause when asked: `--one glibc` (shorthand:
+`--one-glibc`) means one era or unsat, exactly like `--one zstd`. What is
+special about glibc is the *default*. Its symbol versioning makes
+compatibility directional — a newer glibc satisfies every older demand,
+and under tier-0 facts an input never demands more than the glibc of the
+revision it was built in — so an unconstrained solve needs no glibc
+clause at all: every plan reports the minimum a shared link world must
+run (`glibc: 2.37 serves every input (eras spanned: 2.34, 2.37)`).
+
+Note what that report leans on: the directional contract holds only once
+exactly one `libc.so.6` is loaded and it is the newest. Nix RPATH-pinning
+can defeat that arrangement (the two-libc loader hazard above), and
+`--one glibc` is the way to refuse plans that depend on it — one era, one
+glibc store version, nothing for the loader to get wrong.
+
+The constraint the directional contract *would* justify — pick one glibc
+G and require every input's supported range to contain G — is not worth
+encoding at tier 0: every range is `[build era, ∞)` (glibc does not
+remove the symbols these packages demand), so the intersection is never
+empty and the constraint can never fail. It becomes real at tier 1, where
+verneed facts and symbol-removal data put upper bounds on ranges; only
+then can "no single glibc serves these inputs" come back as an unsat.
 
 What it guarantees: version-level ABI agreement. The scenario it exists
 for is real and has happened in nixpkgs: an app vendors one zstd while

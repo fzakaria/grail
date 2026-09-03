@@ -2,7 +2,7 @@
 # mini-index (20 revisions, a hole in foo 1.1 at rev 9, an open tip, and a
 # glibc era change at rev 10). Each test states the expected optimum and
 # why it is optimal under the objective stack: fewest revisions, then
-# newest versions, then fewest glibc eras, then freshest builds.
+# newest versions, then fewest --one attr eras, then freshest builds.
 import unittest
 from pathlib import Path
 
@@ -72,13 +72,21 @@ class TestIndependentGroups(unittest.TestCase):
         self.assertEqual(plan.glibcs, ["2.31"])
 
     # foo 1.0 exists only under glibc 2.30 and bar 1.1 only under 2.31.
-    # glibc's contract makes mixing directional rather than fatal: the
-    # plan solves anyway and reports the link-world minimum.
-    def test_one_glibc_mixes_with_a_report(self):
+    # --one glibc is the same hard clause every attr gets: the eras can
+    # never agree, so the solve is unsat and the explanation names them.
+    # (Drop the flag and the same query solves, reporting both eras with
+    # 2.31 as the link-world minimum — that is the directional default.)
+    def test_one_glibc_unsat_when_eras_cannot_agree(self):
         plan = run("foo@1.0 bar@1.1", one_glibc=True)
-        self.assertEqual(plan.result, "sat")
-        self.assertEqual(plan.glibcs, ["2.30", "2.31"])
-        self.assertEqual(plan.glibc_required, "2.31")
+        self.assertEqual(plan.result, "unsat")
+        self.assertIn("glibc", plan.why)
+        self.assertIn("2.30", plan.why)
+        self.assertIn("2.31", plan.why)
+
+        free = run("foo@1.0 bar@1.1")
+        self.assertEqual(free.result, "sat")
+        self.assertEqual(free.glibcs, ["2.30", "2.31"])
+        self.assertEqual(free.glibc_required, "2.31")
 
 
 class TestClamps(unittest.TestCase):
@@ -107,10 +115,6 @@ class TestErrors(unittest.TestCase):
         self.assertIn("nosuchpackage", plan.why)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestOneAttr(unittest.TestCase):
     # --one generalizes the glibc constraint to any attr: every chosen
     # revision must ship the same version of it. In the fixture, bar has
@@ -132,9 +136,8 @@ class TestOneAttr(unittest.TestCase):
         self.assertEqual(sorted(g.revision.off for g in plan.groups), [3, 6])
         self.assertEqual(dict(plan.libs)["bar"], ["0.9"])
 
-    # a HARD --one attr whose versions can never agree is unsat, and the
-    # explanation names the attr and the versions it would mix. (glibc,
-    # being directional, never behaves this way.)
+    # a --one attr whose versions can never agree is unsat, and the
+    # explanation names the attr and the versions it would mix.
     def test_one_unsat_names_the_versions(self):
         # foo 1.0 lives in the bar-0.9 era [0,6]; the bar@1.1 pin lives in
         # the bar-1.1 era [15,19]; --one bar can never reconcile them
@@ -148,3 +151,7 @@ class TestOneAttr(unittest.TestCase):
         plan = run("foo@1.0", one=["nosuchlib"])
         self.assertEqual(plan.result, "unsat")
         self.assertIn("nosuchlib", plan.why)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -28,7 +28,7 @@ group(g0, s0).             % coexistence group membership
 allowed(s0, "3.10.6", 47). % version passed the range; 47 = compareVersions rank
 run(s0, "3.10.6", 835, 864). % one lifetime run, clamped to any date bounds
 libera("glibc", 9, 824, 1005). % glibc era 9 (2.35) reigned r824..r1005;
-                           % --one <attr> adds more libs to track
+                           % emitted per --one attr, glibc when asked
 ```
 
 ## Rules
@@ -62,9 +62,11 @@ Lexicographic, highest priority first:
 ```
 
 `--one <attr>` appends a hard clause per attr instead of relying on
-priority 2 — except glibc: its backward compatibility makes mixing
-directional, so `--one glibc` (and its shorthand `--one-glibc`) stays
-soft and the plan reports the link-world minimum instead:
+priority 2 — glibc included (`--one-glibc` is shorthand for
+`--one glibc`). Priority 2 only bites in the relaxed re-solve that
+explains an UNSAT; with the clauses in force every tracked attr sits in
+one era anyway. A solve with no `--one glibc` leaves glibc out of the
+theory entirely and reports the link-world minimum after the fact:
 
 ```prolog
 :- usedlib("zstd", K1), usedlib("zstd", K2), K1 < K2.
@@ -83,7 +85,7 @@ python3@3.8.* was last alive 2021-07-18 (r621),
 postgresql@13.* first alive 2021-08-01 (r625)
 ```
 
-— and a `--one-glibc` failure re-solves relaxed to show which eras the
+— and a `--one` failure re-solves relaxed to show which versions the
 plan would have had to mix. Exact-pin queries stay on multiverse's greedy
 path in spirit: the same answers, and `tests/test_solve.py` keeps the two
 solvers agreeing.

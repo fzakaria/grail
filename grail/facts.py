@@ -95,8 +95,7 @@ def _q(s: str) -> str:
 
 def emit(spec_facts: list[SpecFacts], index: Index, libs: list[str]) -> str:
     """The facts block handed to clingo alongside asp/solve.lp. `libs` are
-    the attrs whose version eras become libera facts — glibc always, plus
-    every --one attr."""
+    the --one attrs, whose version eras become libera facts."""
     lines = []
 
     for sf in spec_facts:
