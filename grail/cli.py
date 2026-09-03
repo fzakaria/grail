@@ -41,8 +41,7 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
         metavar="ATTR",
         action="append",
         default=[],
-        help="refuse plans whose revisions mix versions of this attr "
-        "(repeatable)",
+        help="refuse plans whose revisions mix versions of this attr " "(repeatable)",
     )
     parser.add_argument(
         "--before", metavar="DATE", help="only revisions on or before this ISO date"

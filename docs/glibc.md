@@ -82,7 +82,7 @@ the attr each revision shipped — so no closure analysis is needed.
 
 glibc gets the same hard clause when asked: `--one glibc` (shorthand:
 `--one-glibc`) means one era or unsat, exactly like `--one zstd`. What is
-special about glibc is the *default*. Its symbol versioning makes
+special about glibc is the _default_. Its symbol versioning makes
 compatibility directional — a newer glibc satisfies every older demand,
 and under tier-0 facts an input never demands more than the glibc of the
 revision it was built in — so an unconstrained solve needs no glibc
@@ -95,7 +95,7 @@ can defeat that arrangement (the two-libc loader hazard above), and
 `--one glibc` is the way to refuse plans that depend on it — one era, one
 glibc store version, nothing for the loader to get wrong.
 
-The constraint the directional contract *would* justify — pick one glibc
+The constraint the directional contract _would_ justify — pick one glibc
 G and require every input's supported range to contain G — is not worth
 encoding at tier 0: every range is `[build era, ∞)` (glibc does not
 remove the symbols these packages demand), so the intersection is never
