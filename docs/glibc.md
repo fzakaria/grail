@@ -85,7 +85,7 @@ versioning makes compatibility directional — a newer glibc satisfies every
 older demand, and an input never demands more than the glibc of the
 revision it was built in — so a mixed plan is link-safe provided the
 shared process runs the newest era. Every plan therefore reports that
-minimum (`glibc: 2.34, 2.37 (link world needs >= 2.37)`), and
+minimum (`glibc: 2.37 serves every input (eras spanned: 2.34, 2.37)`), and
 `--one-glibc` / `--one glibc` only _prefers_ fewer eras (a soft
 objective); it can never make a plan unsatisfiable. The hard clause is
 reserved for libraries with no such contract.

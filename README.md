@@ -103,7 +103,7 @@ link-world minimum, and `--one-glibc` merely prefers fewer eras.
 ```console
 $ grail solve 'python3@3.10.* postgresql@13.*'
     python3 3.10.12
-  glibc: 2.34, 2.37 (link world needs >= 2.37)
+  glibc: 2.37 serves every input (eras spanned: 2.34, 2.37)
 $ grail solve 'python3@3.10.* postgresql@13.*' --one zstd --one openssl
     python3 3.10.4       # one zstd, one openssl — glibc follows for free
   glibc: 2.34

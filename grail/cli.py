@@ -72,11 +72,15 @@ def _print_plan(plan, as_json: bool) -> None:
         if versions and attr != "glibc":
             print(f"  {attr}: {', '.join(versions)}")
 
-    # the glibc line is a report, not a constraint: a shared link world
-    # must run the newest era (symbol versioning covers the older demands)
+    # the glibc line is a RESOLUTION: the newest era serves every input
+    # (symbol versioning covers the older demands), so print it as the
+    # answer, with the eras the inputs span as context
     if len(plan.glibcs) > 1:
-        eras = ", ".join(plan.glibcs)
-        print(f"  glibc: {eras} (link world needs >= {plan.glibc_required})")
+        spans = ", ".join(plan.glibcs)
+        print(
+            f"  glibc: {plan.glibc_required} serves every input "
+            f"(eras spanned: {spans})"
+        )
     elif plan.glibcs:
         print(f"  glibc: {plan.glibcs[0]}")
 
