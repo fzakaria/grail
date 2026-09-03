@@ -256,7 +256,7 @@ async function runSolve() {
     return;
   }
 
-  results.innerHTML = `<p class="muted">solving…</p>`;
+  results.innerHTML = `<p class="muted solving">solving<span>.</span><span>.</span><span>.</span></p>`;
   const started = performance.now();
   let plan;
   try {
