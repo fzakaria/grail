@@ -36,10 +36,12 @@ libera("glibc", 9, 824, 1005). % glibc era 9 (2.35) reigned r824..r1005;
 ```prolog
 1 { pick(S, V) : allowed(S, V, _) } 1 :- spec(S).
 
-possible(G, R) :- group(G, S), run(S, V, Lo, Hi), R = Lo..Hi.
+cand(R) :- run(_, _, _, R).
+cand(R) :- libera(_, _, _, R).
+possible(G, R) :- group(G, S), run(S, V, Lo, Hi), cand(R), Lo <= R, R <= Hi.
 1 { at(G, R) : possible(G, R) } 1 :- group(G, _).
 
-alive(S, V, R) :- allowed(S, V, _), run(S, V, Lo, Hi), R = Lo..Hi.
+alive(S, V, R) :- allowed(S, V, _), run(S, V, Lo, Hi), cand(R), Lo <= R, R <= Hi.
 :- at(G, R), group(G, S), pick(S, V), not alive(S, V, R).
 
 used(R) :- at(_, R).
@@ -47,8 +49,18 @@ usedlib(L, K) :- used(R), libera(L, K, Lo, Hi), Lo <= R, R <= Hi.
 ```
 
 Read aloud: pick exactly one version per spec; park each group at one
-revision where some member lives; forbid any model where a member's picked
-version was not alive there. That is the entire feasibility theory.
+candidate revision where some member lives; forbid any model where a
+member's picked version was not alive there. That is the entire
+feasibility theory.
+
+Candidates are right endpoints only — of a run, or of a tracked era.
+The reduction is sound because every objective either counts something
+constant across a run-and-era segment (distinct revisions, picked ranks,
+mixed eras) or pushes a group rightward (freshest builds): whatever an
+interior revision achieves, the right edge of its segment achieves too.
+Any set of picks that coexists somewhere coexists at the smallest of
+their runs' right endpoints, which is itself a candidate — so no model
+is lost, only interchangeable interior copies of one.
 
 ## The policy
 
@@ -92,10 +104,14 @@ solvers agreeing.
 
 ## Grounding discipline
 
-`R = Lo..Hi` in a rule body expands over the run's revisions, so ground
-size is (allowed versions) x (their lifetime lengths), a few thousand atoms
-for a wide query against the real 1,541-revision index. Solving is
-interactive — the real-index coexistence demo grounds and solves in well
-under half a second. The place to stay careful is future dependency-closure
-facts, where variables over the whole index would explode; the front-end
-controls the domain by construction.
+Nothing in the encoding ranges over revisions: `cand/1` holds one atom
+per run or era endpoint, so ground size is (allowed versions) x
+(candidates), a few thousand atoms for a wide query against the real
+1,541-revision index. That endpoint restriction is what keeps wide
+ranges fast — grounding `R = Lo..Hi` over whole lifetimes made
+`ffmpeg@4.* ripgrep@>=14 ^bat` cost 3.5 s of optimality proof (the
+freshness objective's weights reach the tip offset); on endpoints the
+same query solves in 13 ms with the identical optimum. The place to
+stay careful is future dependency-closure facts, where variables over
+the whole index would explode; the front-end controls the domain by
+construction.

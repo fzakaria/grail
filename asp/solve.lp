@@ -17,12 +17,22 @@
 % choose exactly one version per spec
 1 { pick(S, V) : allowed(S, V, _) } 1 :- spec(S).
 
-% a group can sit at any revision where some member version is alive;
+% Candidate revisions are right endpoints only: of a lifetime run, or
+% of a tracked era. Every objective either counts something constant
+% across a run-and-era segment (distinct revisions, picked ranks, mixed
+% eras) or pushes a group's revision rightward (freshest builds), so an
+% interior revision is never strictly better than its segment's right
+% edge. Grounding shrinks from the sum of run lengths to #runs + #eras
+% candidates — milliseconds instead of seconds on wide ranges.
+cand(R) :- run(_, _, _, R).
+cand(R) :- libera(_, _, _, R).
+
+% a group can sit at any candidate where some member version is alive;
 % the constraint below narrows that to "every member version"
-possible(G, R) :- group(G, S), run(S, V, Lo, Hi), R = Lo..Hi.
+possible(G, R) :- group(G, S), run(S, V, Lo, Hi), cand(R), Lo <= R, R <= Hi.
 1 { at(G, R) : possible(G, R) } 1 :- group(G, _).
 
-alive(S, V, R) :- allowed(S, V, _), run(S, V, Lo, Hi), R = Lo..Hi.
+alive(S, V, R) :- allowed(S, V, _), run(S, V, Lo, Hi), cand(R), Lo <= R, R <= Hi.
 :- at(G, R), group(G, S), pick(S, V), not alive(S, V, R).
 
 used(R) :- at(_, R).
