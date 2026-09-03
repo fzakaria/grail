@@ -21,6 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from grail.index import Index  # noqa: E402
+
 MONO = '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace'
 
 # geometry (viewBox units; the page scales the whole thing)
@@ -102,7 +103,7 @@ def main():
         f'width="600" height="{height}" '
         f'xmlns="http://www.w3.org/2000/svg" role="img" '
         f'aria-label="postgresql 13 and python 3.10 lifetimes over the '
-        f'glibc, zstd and openssl eras; the window where every era '
+        f"glibc, zstd and openssl eras; the window where every era "
         f'agrees ends {wr}, where the coherent plan pins python 3.10.4">'
     )
     put(f"""<style>
