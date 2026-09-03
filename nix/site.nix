@@ -10,6 +10,11 @@
   self,
   multiverse,
 }:
+let
+  # a clean build pins the page's solve.lp links to the exact commit it
+  # was built from; a dirty tree has no rev, so the links stay on main
+  rev = self.rev or "main";
+in
 pkgs.runCommand "grail-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
   mkdir -p $out
   cp -r ${self}/site/. $out/
@@ -22,6 +27,8 @@ pkgs.runCommand "grail-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
     --out $out/data
 
   substituteInPlace $out/js/app.js --replace-fail "__STORE_PATH__" "$out"
+  substituteInPlace $out/js/app.js $out/index.html \
+    --replace-fail "blob/main/asp/solve.lp" "blob/${rev}/asp/solve.lp"
 
   # The multiverse cache-busting trick, verbatim: hash the module tree and
   # rename it js.<hash>, so the served HTML and every module (and solve.lp)
