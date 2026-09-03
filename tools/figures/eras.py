@@ -24,17 +24,17 @@ from grail.index import Index  # noqa: E402
 MONO = '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace'
 
 # geometry (viewBox units; the page scales the whole thing)
-X0, X1 = 96, 748
-ROW_H, BAR_H = 22, 7
-ERA_H = 13
-TOP = 30  # legend row
+X0, X1 = 92, 592
+ROW_H, BAR_H = 26, 9
+ERA_H = 17
+TOP = 34  # legend row
 
 # the story's cast, all pulled from the index at run time
 LIBS = ("glibc", "zstd", "openssl")
 FREE_OFF, COHERENT_OFF, POSTGRES_OFF = 1128, 793, 771
 
 # label an era segment inline only when it can hold its version text
-MIN_LABEL_W = 44
+MIN_LABEL_W = 50
 
 
 def _union(intervals):
@@ -89,17 +89,17 @@ def main():
     assert whi == COHERENT_OFF, "expected the window to end at the python pin"
 
     # layout: legend, two attr rows, three era strips, axis
-    y_attr = TOP + 40
-    y_era = y_attr + len(attrs) * ROW_H + 30
-    plot_top = TOP + 30
+    y_attr = TOP + 44
+    y_era = y_attr + len(attrs) * ROW_H + 46
+    plot_top = TOP + 34
     plot_bot = y_era + len(LIBS) * ROW_H - (ROW_H - ERA_H) + 6
     height = plot_bot + 30
 
     svg = []
     put = svg.append
     put(
-        f'<svg class="grail-fig" viewBox="0 0 760 {height}" '
-        f'width="760" height="{height}" '
+        f'<svg class="grail-fig" viewBox="0 0 600 {height}" '
+        f'width="600" height="{height}" '
         f'xmlns="http://www.w3.org/2000/svg" role="img" '
         f'aria-label="postgresql 13 and python 3.10 lifetimes over the '
         f'glibc, zstd and openssl eras; the window where every era '
@@ -107,15 +107,15 @@ def main():
     )
     put(f"""<style>
   .grail-fig {{ font-family: {MONO}; }}
-  .grail-fig text {{ font-size: 10px; fill: #565046; }}
-  .grail-fig .head {{ font-size: 11px; font-weight: 600; fill: #1a1815; }}
+  .grail-fig text {{ font-size: 12px; fill: #565046; }}
+  .grail-fig .head {{ font-size: 13px; font-weight: 600; fill: #1a1815; }}
   .grail-fig .grid {{ stroke: #dcd5c5; stroke-width: 1; }}
   .grail-fig .hit {{ fill: #2a78d6; }}
   .grail-fig .era {{ fill: #6f685b; opacity: .35; }}
   .grail-fig .era.odd {{ opacity: .55; }}
-  .grail-fig .etext {{ fill: #3f3a31; font-size: 9px; }}
+  .grail-fig .etext {{ fill: #3f3a31; font-size: 11px; }}
   .grail-fig .win {{ fill: #cf5d28; opacity: .16; }}
-  .grail-fig .wtext {{ fill: #cf5d28; font-size: 10px; }}
+  .grail-fig .wtext {{ fill: #cf5d28; font-size: 12px; }}
   .grail-fig .pin {{ fill: #cf5d28; stroke: #f6f1e5; stroke-width: 1.5; }}
   .grail-fig .free {{ fill: none; stroke: #6f685b; stroke-width: 2; }}
   .grail-fig .arrow {{ stroke: #cf5d28; stroke-width: 1.4; fill: none; }}
@@ -144,15 +144,19 @@ def main():
         f'width="{max(x(wr) - x(wl), 2):.1f}" height="{plot_bot - plot_top}"/>'
     )
     put(
+        f'<text class="wtext" x="{x(wr) + 8:.1f}" y="{y_era - 26}">'
+        f"every era agrees: {wl} → {wr}</text>"
+    )
+    put(
         f'<text class="wtext" x="{x(wr) + 8:.1f}" y="{y_era - 10}">'
-        f"every era agrees: {wl} → {wr} (openssl 1.1.1o is the wall)</text>"
+        f"(openssl 1.1.1o is the wall)</text>"
     )
 
     # legend
     put(f'<rect class="hit" x="{X0}" y="{TOP - 14}" width="18" height="7" rx="3.5"/>')
     put(f'<text x="{X0 + 24}" y="{TOP - 6}">requested attr lifetime</text>')
-    put(f'<rect class="era odd" x="{X0 + 210}" y="{TOP - 16}" width="18" height="11"/>')
-    put(f'<text x="{X0 + 234}" y="{TOP - 6}">library eras</text>')
+    put(f'<rect class="era odd" x="{X0 + 250}" y="{TOP - 16}" width="18" height="11"/>')
+    put(f'<text x="{X0 + 274}" y="{TOP - 6}">library eras</text>')
 
     # the two requested attrs
     for i, (attr, runs) in enumerate(attrs):
@@ -176,7 +180,7 @@ def main():
     fx, cx = x(day(FREE_OFF)), x(day(COHERENT_OFF))
     put(f'<circle class="free" cx="{fx:.1f}" cy="{py_cy:.1f}" r="4"/>')
     put(f'<circle class="pin" cx="{cx:.1f}" cy="{py_cy:.1f}" r="4.5"/>')
-    ay = TOP + 26
+    ay = TOP + 30
     put(
         f'<path class="arrow" d="M {fx:.1f} {py_cy - 6:.1f} C {fx:.1f} {ay:.1f}, '
         f'{cx:.1f} {ay:.1f}, {cx + 2:.1f} {py_cy - 7:.1f}" '
@@ -192,11 +196,11 @@ def main():
         f"--one zstd --one openssl retreats python 16 months</text>"
     )
     put(
-        f'<text x="{cx:.1f}" y="{py_cy + 18:.1f}" text-anchor="middle">'
+        f'<text x="{cx:.1f}" y="{py_cy + 20:.1f}" text-anchor="middle">'
         f"3.10.4 (r{COHERENT_OFF})</text>"
     )
     put(
-        f'<text x="{fx:.1f}" y="{py_cy + 18:.1f}" text-anchor="middle">'
+        f'<text x="{fx:.1f}" y="{py_cy + 20:.1f}" text-anchor="middle">'
         f"3.10.12 (r{FREE_OFF})</text>"
     )
 
