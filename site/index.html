@@ -63,11 +63,11 @@
     </div>
 
     <div class="opts">
-      <label class="opt muted" title="prefer one glibc era; glibc is backward compatible, so mixing is reported with the link-world minimum, never refused">
+      <label class="opt muted" title="glibc is directional: newer satisfies older, so mixing eras reports the link-world minimum and never fails; this only nudges the solver toward fewer eras">
         <input type="checkbox" id="one-glibc" />
-        prefer one glibc era <span class="muted">(glibc is directional: mixing reports a minimum, never fails)</span>
+        prefer one glibc era
       </label>
-      <label class="opt muted" title="refuse plans whose revisions mix versions of these attrs — the glibc constraint, generalized">
+      <label class="opt muted" title="refuse plans whose revisions mix versions of these attrs; typing glibc here is the same soft preference as the checkbox — glibc never hard-fails">
         keep one version of:
         <input type="text" id="one-attrs" placeholder="zstd, openssl" spellcheck="false" autocomplete="off" />
       </label>
